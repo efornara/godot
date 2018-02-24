@@ -30,7 +30,7 @@
 #include "shader_compiler_gles2.h"
 
 #include "os/os.h"
-#include "string_buffer.h"
+#include "string_buffer_31.h"
 #include "string_builder.h"
 
 #define SL ShaderLanguage
