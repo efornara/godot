@@ -1972,14 +1972,10 @@ void RasterizerStorageGLES2::initialize() {
 	RasterizerStorageGLES2::system_fbo = 0;
 
 	{
-
-		int max_extensions = 0;
-		glGetIntegerv(GL_NUM_EXTENSIONS, &max_extensions);
-		for (int i = 0; i < max_extensions; i++) {
-			const GLubyte *s = glGetStringi(GL_EXTENSIONS, i);
-			if (!s)
-				break;
-			config.extensions.insert((const char *)s);
+		const char *gl_extensions = (const char *)glGetString(GL_EXTENSIONS);
+		Vector<String> strings = String(gl_extensions).split(" ", false);
+		for (int i = 0; i < strings.size(); i++) {
+			config.extensions.insert(strings[i]);
 		}
 	}
 
