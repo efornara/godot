@@ -58,6 +58,7 @@ gmon.out
 # Misc
 .DS_Store
 logs/
+platform/frt
 
 # for projects that use SCons for building: http://http://www.scons.org/
 .sconf_temp
