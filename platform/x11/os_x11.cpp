@@ -78,16 +78,11 @@
 #include <X11/XKBlib.h>
 
 int OS_X11::get_video_driver_count() const {
-	return 1;
+	return 2;
 }
 
 const char *OS_X11::get_video_driver_name(int p_driver) const {
-	String driver_name = GLOBAL_GET("rendering/quality/driver/driver_name");
-
-	if (driver_name == "GLES2") {
-		return "GLES2";
-	}
-	return "GLES3";
+	return p_driver == 1 ? "GLES3" : "GLES2";
 }
 
 int OS_X11::get_audio_driver_count() const {
@@ -289,14 +284,11 @@ Error OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 //print_line("def videomode "+itos(current_videomode.width)+","+itos(current_videomode.height));
 #if defined(OPENGL_ENABLED)
 
-	String setting_name = "rendering/quality/driver/driver_name";
-	ProjectSettings::get_singleton()->set_custom_property_info(setting_name, PropertyInfo(Variant::STRING, setting_name, PROPERTY_HINT_ENUM, "GLES3,GLES2"));
-	String video_driver_name = GLOBAL_DEF("rendering/quality/driver/driver_name", "GLES3");
-
-	ContextGL_X11::ContextType opengl_api_type = ContextGL_X11::GLES_3_0_COMPATIBLE;
-
-	if (video_driver_name == "GLES2") {
+	ContextGL_X11::ContextType opengl_api_type;
+	if (p_video_driver == 0) {
 		opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
+	} else {
+		opengl_api_type = ContextGL_X11::GLES_3_0_COMPATIBLE;
 	}
 
 	context_gl = memnew(ContextGL_X11(x11_display, x11_window, current_videomode, opengl_api_type));
