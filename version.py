@@ -3,5 +3,5 @@ name = "Godot Engine"
 major = 3
 minor = 0
 patch = 1
-status = "stable"
+status = "gles2"
 module_config = ""
