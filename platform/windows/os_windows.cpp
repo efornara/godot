@@ -30,6 +30,7 @@
 
 #include "os_windows.h"
 
+#include "drivers/gles2/rasterizer_gles2.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/windows/dir_access_windows.h"
 #include "drivers/windows/file_access_windows.h"
@@ -153,11 +154,11 @@ void RedirectIOToConsole() {
 
 int OS_Windows::get_video_driver_count() const {
 
-	return 1;
+	return 2;
 }
 const char *OS_Windows::get_video_driver_name(int p_driver) const {
 
-	return "GLES3";
+	return p_driver == 1 ? "GLES3" : "GLES2";
 }
 
 int OS_Windows::get_audio_driver_count() const {
@@ -1076,12 +1077,21 @@ Error OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int
 	};
 
 #if defined(OPENGL_ENABLED)
-	gl_context = memnew(ContextGL_Win(hWnd, true));
+	bool opengl_3_context = p_video_driver == 1;
+
+	gl_context = memnew(ContextGL_Win(hWnd, opengl_3_context));
 	gl_context->initialize();
 
-	RasterizerGLES3::register_config();
-
-	RasterizerGLES3::make_current();
+	switch (opengl_3_context) {
+		case false: {
+			RasterizerGLES2::register_config();
+			RasterizerGLES2::make_current();
+		} break;
+		case true: {
+			RasterizerGLES3::register_config();
+			RasterizerGLES3::make_current();
+		} break;
+	}
 
 	gl_context->set_use_vsync(video_mode.use_vsync);
 #endif
