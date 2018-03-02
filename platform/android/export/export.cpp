@@ -595,6 +595,8 @@ class EditorExportAndroid : public EditorExportPlatform {
 		bool screen_support_large = p_preset->get("screen/support_large");
 		bool screen_support_xlarge = p_preset->get("screen/support_xlarge");
 
+		bool use_gles3 = ((int)p_preset->get("graphics/api")) == 1;
+
 		String user_perms[MAX_USER_PERMISSIONS];
 
 		for (int i = 0; i < MAX_USER_PERMISSIONS; i++) {
@@ -731,8 +733,16 @@ class EditorExportAndroid : public EditorExportPlatform {
 							encode_uint32(orientation == 0 ? 0 : 1, &p_manifest[iofs + 16]);
 						}
 
+						if (tname == "meta-data" && /*nspace=="android" &&*/ attrname == "value") {
+							if (value == "GLES2" && use_gles3)
+								string_table[attr_value] = "GLES3";
+
+						}
+
 						if (tname == "uses-feature" && /*nspace=="android" &&*/ attrname == "glEsVersion") {
-							print_line("version number: " + itos(decode_uint32(&p_manifest[iofs + 16])));
+							uint32_t glEsVersion = use_gles3 ? 0x30000 : 0x20000;
+							encode_uint32(glEsVersion, &p_manifest[iofs + 16]);
+							print_line("glEsVersion: " + itos(decode_uint32(&p_manifest[iofs + 16])));
 						}
 
 						if (tname == "uses-permission" && /*nspace=="android" &&*/ attrname == "name") {
@@ -996,12 +1006,11 @@ public:
 public:
 	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) {
 
-		// Re-enable when a GLES 2.0 backend is read
-		/*int api = p_preset->get("graphics/api");
+		int api = p_preset->get("graphics/api");
 		if (api == 0)
 			r_features->push_back("etc");
-		else*/
-		r_features->push_back("etc2");
+		else
+			r_features->push_back("etc2");
 
 		Vector<String> abis = get_enabled_abis(p_preset);
 		for (int i = 0; i < abis.size(); ++i) {
@@ -1011,7 +1020,7 @@ public:
 
 	virtual void get_export_options(List<ExportOption> *r_options) {
 
-		/*r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "graphics/api", PROPERTY_HINT_ENUM, "OpenGL ES 2.0,OpenGL ES 3.0"), 1));*/
+		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "graphics/api", PROPERTY_HINT_ENUM, "OpenGL ES 2.0,OpenGL ES 3.0"), 0));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, "graphics/32_bits_framebuffer"), true));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, "one_click_deploy/clear_previous_install"), true));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "custom_package/debug", PROPERTY_HINT_GLOBAL_FILE, "apk"), ""));

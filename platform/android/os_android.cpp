@@ -32,6 +32,7 @@
 
 #include "core/io/file_access_buffered_fa.h"
 #include "core/project_settings.h"
+#include "drivers/gles2/rasterizer_gles2.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/unix/dir_access_unix.h"
 #include "drivers/unix/file_access_unix.h"
@@ -39,6 +40,17 @@
 #include "main/main.h"
 #include "servers/visual/visual_server_raster.h"
 //#include "servers/visual/visual_server_wrap_mt.h"
+
+
+// Bypass abstractions to simplify merge with upstream
+bool global_use_gles3 = false;
+
+// command line is only available after GLSurfaceView has been initialized
+void setup_use_gles3(JNIEnv *env, jobject activity) {
+	jclass cls = env->FindClass("org/godotengine/godot/utils/Metadata");
+	jmethodID getUseGLES3 = env->GetStaticMethodID(cls, "getUseGLES3", "(Landroid/app/Activity;)Z");
+	global_use_gles3 = env->CallStaticBooleanMethod(cls, getUseGLES3, activity) != JNI_FALSE;
+}
 
 #ifdef ANDROID_NATIVE_ACTIVITY
 #include "dir_access_android.h"
@@ -125,15 +137,23 @@ void OS_Android::set_opengl_extensions(const char *p_gl_extensions) {
 
 Error OS_Android::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
 
-	use_gl2 = p_video_driver != 1;
+	use_gl2 = global_use_gles3; // does it really mean use_gl3?
 
 	if (gfx_init_func)
 		gfx_init_func(gfx_init_ud, use_gl2);
 
 	AudioDriverManager::add_driver(&audio_driver_android);
 
-	RasterizerGLES3::register_config();
-	RasterizerGLES3::make_current();
+	switch (global_use_gles3) {
+		case false: {
+			RasterizerGLES2::register_config();
+			RasterizerGLES2::make_current();
+		} break;
+		case true: {
+			RasterizerGLES3::register_config();
+			RasterizerGLES3::make_current();
+		} break;
+	}
 
 	visual_server = memnew(VisualServerRaster);
 	/*	if (get_render_thread_mode() != RENDER_THREAD_UNSAFE) {
@@ -715,8 +735,10 @@ String OS_Android::get_joy_guid(int p_device) const {
 }
 
 bool OS_Android::_check_internal_feature_support(const String &p_feature) {
-	if (p_feature == "mobile" || p_feature == "etc" || p_feature == "etc2") {
-		//TODO support etc2 only if GLES3 driver is selected
+	if (p_feature == "mobile" || p_feature == "etc") {
+		return true;
+	}
+	if (global_use_gles3 && p_feature == "etc2") {
 		return true;
 	}
 #if defined(__aarch64__)

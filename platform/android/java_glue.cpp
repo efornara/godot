@@ -759,6 +759,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_initialize(JNIEnv *en
 
 	__android_log_print(ANDROID_LOG_INFO, "godot", "**INIT EVENT! - %p\n", env);
 
+	extern void setup_use_gles3(JNIEnv *env, jobject activity);
+	setup_use_gles3(env, activity);
+
 	initialized = true;
 
 	JavaVM *jvm;
@@ -834,10 +837,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_initialize(JNIEnv *en
 	__android_log_print(ANDROID_LOG_INFO, "godot", "test construction %i\n", tst.a);
 	__android_log_print(ANDROID_LOG_INFO, "godot", "running from dir %s\n", wd);
 
-	//video driver is determined here, because once initialized, it can't be changed
-	// String vd = ProjectSettings::get_singleton()->get("display/driver");
-
-	env->CallVoidMethod(_godot_instance, _on_video_init, (jboolean) true);
+	extern bool global_use_gles3;
+	env->CallVoidMethod(_godot_instance, _on_video_init, (jboolean) global_use_gles3);
 }
 
 static void _initialize_java_modules() {
