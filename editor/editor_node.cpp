@@ -2605,6 +2605,9 @@ void EditorNode::_discard_changes(const String &p_str) {
 			String exec = OS::get_singleton()->get_executable_path();
 
 			List<String> args;
+			extern const char *global_video_driver_name;
+			args.push_back("--video-driver");
+			args.push_back(global_video_driver_name);
 			args.push_back("--path");
 			args.push_back(exec.get_base_dir());
 			args.push_back("--project-manager");

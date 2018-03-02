@@ -1176,6 +1176,10 @@ void ProjectManager::_open_project_confirm() {
 
 		List<String> args;
 
+		extern const char *global_video_driver_name;
+		args.push_back("--video-driver");
+		args.push_back(global_video_driver_name);
+
 		args.push_back("--path");
 		args.push_back(path);
 
@@ -1232,6 +1236,10 @@ void ProjectManager::_run_project_confirm() {
 		print_line("OPENING: " + path + " (" + selected + ")");
 
 		List<String> args;
+
+		extern const char *global_video_driver_name;
+		args.push_back("--video-driver");
+		args.push_back(global_video_driver_name);
 
 		args.push_back("--path");
 		args.push_back(path);

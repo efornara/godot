@@ -131,6 +131,9 @@ static OS::ProcessID allow_focus_steal_pid = 0;
 
 static bool project_manager = false;
 
+// Bypass abstractions to simplify merge with upstream
+const char *global_video_driver_name = 0;
+
 bool Main::is_project_manager() {
 	return project_manager;
 }
@@ -904,6 +907,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		video_driver_idx = 0;
 		//goto error;
 	}
+	global_video_driver_name = OS::get_singleton()->get_video_driver_name(video_driver_idx);
 
 	if (audio_driver == "") { // specified in project.godot
 		audio_driver = GLOBAL_DEF("audio/driver", OS::get_singleton()->get_audio_driver_name(0));

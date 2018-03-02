@@ -509,6 +509,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("run/output/always_clear_output_on_play", true);
 	_initial_set("run/output/always_open_output_on_play", true);
 	_initial_set("run/output/always_close_output_on_stop", false);
+	_initial_set("run/video_driver/force_gles2", false);
 	_initial_set("filesystem/resources/save_compressed_resources", true);
 	_initial_set("filesystem/resources/auto_reload_modified_images", true);
 

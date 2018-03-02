@@ -41,9 +41,17 @@ Error EditorRun::run(const String &p_scene, const String p_custom_args, const Li
 
 	List<String> args;
 
+	bool force_gles2 = (bool)EditorSettings::get_singleton()->get("run/video_driver/force_gles2");
 	String resource_path = ProjectSettings::get_singleton()->get_resource_path();
 	String remote_host = EditorSettings::get_singleton()->get("network/debug/remote_host");
 	int remote_port = (int)EditorSettings::get_singleton()->get("network/debug/remote_port");
+
+	extern const char *global_video_driver_name;
+	args.push_back("--video-driver");
+	if (force_gles2)
+		args.push_back("GLES2");
+	else
+		args.push_back(global_video_driver_name);
 
 	if (resource_path != "") {
 		args.push_back("--path");
