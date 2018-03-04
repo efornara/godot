@@ -1160,6 +1160,7 @@ bool OS_X11::is_window_maximized() const {
 	unsigned long len;
 	unsigned long remaining;
 	unsigned char *data = NULL;
+	bool retval = false;
 
 	int result = XGetWindowProperty(
 			x11_display,
@@ -1188,13 +1189,15 @@ bool OS_X11::is_window_maximized() const {
 			if (atoms[i] == wm_max_vert)
 				found_wm_max_vert = true;
 
-			if (found_wm_max_horz && found_wm_max_vert)
-				return true;
+			if (found_wm_max_horz && found_wm_max_vert) {
+				retval = true;
+				break;
+			}
 		}
-		XFree(atoms);
 	}
 
-	return false;
+	XFree(data);
+	return retval;
 }
 
 void OS_X11::set_borderless_window(bool p_borderless) {

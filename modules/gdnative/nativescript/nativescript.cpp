@@ -854,6 +854,7 @@ void NativeScriptLanguage::_unload_stuff(bool p_reload) {
 NativeScriptLanguage::NativeScriptLanguage() {
 	NativeScriptLanguage::singleton = this;
 #ifndef NO_THREADS
+	has_objects_to_register = false;
 	mutex = Mutex::create();
 #endif
 }
