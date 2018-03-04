@@ -163,11 +163,13 @@ void RasterizerGLES2::initialize() {
 #ifdef __APPLE__
 // FIXME glDebugMessageCallbackARB does not seem to work on Mac OS X and opengl 3, this may be an issue with our opengl canvas..
 #else
+	/*
 	if (true || OS::get_singleton()->is_stdout_verbose()) {
 		glEnable(_EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
 		glDebugMessageCallbackARB(_gl_debug_print, NULL);
 		glEnable(_EXT_DEBUG_OUTPUT);
 	}
+	*/
 #endif
 
 #endif // GLAD_ENABLED
