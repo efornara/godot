@@ -1,3 +1,6 @@
+GLES2
+=====
+
 This is a backport of the GLES2 renderer to the 3.0 branch (stable releases).
 Once a 3.1 release candidate is available, this branch will become inactive.
 
@@ -5,15 +8,6 @@ Since master might start to diverge from 3.0, backporting of new features might
 soon become unfeasible. In that case, and if you need the additional features,
 you are better off tracking master, for which frequent builds should be
 available.
-
-The main use case for this branch is a beginner who focuses on simple 2D
-games mostly to learn the engine, prefers a more stable editor compared
-to master, but has on old PC and/or a low-end Android phone. For this,
-this branch should be fairly useable.
-
-It goes without saying that this branch is unsupported and most likely buggy.
-Users looking to release games to the public are advised to wait for the
-official release of godot 3.1.
 
 Usage
 -----
@@ -32,8 +26,8 @@ option in the editor settings for that:
 
 In godot 3.1, the selection of the renderer is part of the project settings.
 This branch aims for identical behaviour compared to its corresponding
-stable release, so, the selection of the renderer is decided at run / export
-time instead.
+official stable 3.0.x release, so, the selection of the renderer is decided
+at run / export time instead.
 
 Android
 -------
@@ -45,14 +39,45 @@ A new export option is available:
 It is used to select the renderer and to set the glEsVersion attribute in
 the manifest.
 
+Scope and Features
+------------------
+
+The main use case for this branch is a beginner who focuses on simple 2D
+games (mostly to learn the engine) and prefers a more stable editor compared
+to master, but has on old PC and/or a low-end Android phone.
+
+Only 2D is available (e.g. 3D viewports are blank), and visual effects
+like particles and 2D lighting are not. However, every element of the
+project is kept between saves, so you should be able to share your
+projects and collaborate with people using the corresponding official
+3.0.x-stable release. Frequent backups are nevertheless advised.
+
+In other words, the more you focus on the game logic, the more you will
+be able to use this branch; the more you focus on polishing the look of
+the game, the more you will encounter problems.
+
+For example, if you grab some 2D resources like these:
+https://opengameart.org/users/kenney and focus on learning project
+organization, nodes, scenes, events, sprites, animations, scripting, etc...
+your experience should feel pretty much the same as the experience of someone
+using the corresponding official 3.0.x-stable release.
+
+It goes without saying that this branch is unsupported and most likely buggy.
+Users looking to release games to the public are advised to wait for the
+official release of godot 3.1.
+
 Known Bugs and Limitations
 --------------------------
 
 - 2D Only
 
+- No 2D lighting
+
 - No particle effects
 
 - Unknown issues with some textures (e.g. float format)
+
+- Only 32-bit Windows editor and Android templates released
 
 - Releases compiled without SSL support
 
