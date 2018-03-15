@@ -33,6 +33,7 @@
 #include "core/engine.h"
 #include "core/io/file_access_buffered_fa.h"
 #include "dom_keys.h"
+#include "drivers/gles2/rasterizer_gles2.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/unix/dir_access_unix.h"
 #include "drivers/unix/file_access_unix.h"
@@ -57,12 +58,12 @@ static void dom2godot_mod(T emscripten_event_ptr, Ref<InputEventWithModifiers> g
 
 int OS_JavaScript::get_video_driver_count() const {
 
-	return 1;
+	return 2;
 }
 
 const char *OS_JavaScript::get_video_driver_name(int p_driver) const {
 
-	return "GLES3";
+	return p_driver == 1 ? "GLES3" : "GLES2";
 }
 
 int OS_JavaScript::get_audio_driver_count() const {
@@ -418,11 +419,13 @@ Error OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, 
 
 	print_line("Init OS");
 
+	bool opengl_3_context = p_video_driver == 1;
+
 	EmscriptenWebGLContextAttributes attributes;
 	emscripten_webgl_init_context_attributes(&attributes);
 	attributes.alpha = false;
 	attributes.antialias = false;
-	attributes.majorVersion = 2;
+	attributes.majorVersion = opengl_3_context ? 2 : 1;
 	EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_create_context(NULL, &attributes);
 	ERR_FAIL_COND_V(emscripten_webgl_make_context_current(ctx) != EMSCRIPTEN_RESULT_SUCCESS, ERR_UNAVAILABLE);
 
@@ -450,8 +453,16 @@ Error OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, 
 	AudioDriverManager::add_driver(&audio_driver_javascript);
 	AudioDriverManager::initialize(p_audio_driver);
 
-	RasterizerGLES3::register_config();
-	RasterizerGLES3::make_current();
+	switch (opengl_3_context) {
+		case false: {
+			RasterizerGLES2::register_config();
+			RasterizerGLES2::make_current();
+		} break;
+		case true: {
+			RasterizerGLES3::register_config();
+			RasterizerGLES3::make_current();
+		} break;
+	}
 
 	print_line("Init VS");
 
