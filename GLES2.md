@@ -12,6 +12,9 @@ available.
 Usage
 -----
 
+Download the pre-built binaries
+[here](https://github.com/efornara/godot/releases).
+
 By default, the editor uses the GLES2 renderer. The GLES3 renderer is still
 included, but if you do want to use it, you need to invoke the editor like
 this:
@@ -66,6 +69,27 @@ It goes without saying that this branch is unsupported and most likely buggy.
 Users looking to release games to the public are advised to wait for the
 official release of godot 3.1.
 
+Master Builds
+-------------
+
+You can find the latest master builds
+[here](https://archive.hugo.pro/godot/master/).
+Given the code in master, I suspect you might have some small problems
+running it. If that is the case, here are some tips that might help.
+
+Start it with:
+
+	godot.exe --video-driver GLES2
+
+That should allow you to create a new project. If you cannot edit the
+newly created project, open the command prompt, go to the project directory
+and run it from there like this:
+
+	godot.exe --video-driver GLES2 -e
+
+Go to the project settings and change
+Rendering / Quality / Driver / Driver Name to GLES2.
+
 Known Bugs and Limitations
 --------------------------
 
@@ -82,3 +106,17 @@ Known Bugs and Limitations
 - Releases compiled without SSL support
 
 - No support for MacOS/iPhone
+
+Issues:
+
+- [17429](https://github.com/godotengine/godot/issues/17429) In the editor, Texture Region window for Sprite does not pan or zoom properly GLES2
+
+Reporting Bugs
+--------------
+
+The most relevant bugs to report on this branch are hard crashes at startup
+on a Windows OpenGL 2.1 machine, making sure first that the official
+Godot-2.1.x runs.
+
+Graphical glitches should usually be reported on the master repository, but
+_only after reproducing them on a master build_.
