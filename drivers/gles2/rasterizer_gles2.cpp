@@ -148,9 +148,9 @@ void RasterizerGLES2::initialize() {
 	}
 
 // GLVersion seems to be used for both GL and GL ES, so we need different version checks for them
-#ifdef OPENGL_ENABLED // OpenGL 3.3 Core Profile required
-	if (GLVersion.major < 3) {
-#else // OpenGL ES 3.0
+#ifdef OPENGL_ENABLED // OpenGL 2.1 required
+	if (GLVersion.major < 2 || (GLVersion.major == 2 && GLVersion.minor < 1)) {
+#else // OpenGL ES 2.0
 	if (GLVersion.major < 2) {
 #endif
 		ERR_PRINT("Your system's graphic drivers seem not to support OpenGL 2.1 / OpenGL ES 2.0, sorry :(\n"
