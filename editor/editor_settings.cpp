@@ -285,6 +285,10 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	hints["interface/editor/main_font_size"] = PropertyInfo(Variant::INT, "interface/editor/main_font_size", PROPERTY_HINT_RANGE, "10,40,1", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED);
 	_initial_set("interface/editor/code_font_size", 14);
 	hints["interface/editor/code_font_size"] = PropertyInfo(Variant::INT, "interface/editor/code_font_size", PROPERTY_HINT_RANGE, "8,96,1", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED);
+	_initial_set("interface/editor/main_font_hinting", 2);
+	hints["interface/editor/main_font_hinting"] = PropertyInfo(Variant::INT, "interface/editor/main_font_hinting", PROPERTY_HINT_ENUM, "None,Light,Normal", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED);
+	_initial_set("interface/editor/code_font_hinting", 2);
+	hints["interface/editor/code_font_hinting"] = PropertyInfo(Variant::INT, "interface/editor/code_font_hinting", PROPERTY_HINT_ENUM, "None,Light,Normal", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED);
 	_initial_set("interface/editor/main_font", "");
 	hints["interface/editor/main_font"] = PropertyInfo(Variant::STRING, "interface/editor/main_font", PROPERTY_HINT_GLOBAL_FILE, "*.ttf,*.otf", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED);
 	_initial_set("interface/editor/code_font", "");
@@ -360,7 +364,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("text_editor/line_numbers/code_folding", true);
 	_initial_set("text_editor/line_numbers/show_line_length_guideline", false);
 	_initial_set("text_editor/line_numbers/line_length_guideline_column", 80);
-	hints["text_editor/line_numbers/line_length_guideline_column"] = PropertyInfo(Variant::INT, "text_editor/line_numbers/line_length_guideline_column", PROPERTY_HINT_RANGE, "20, 160, 10");
+	hints["text_editor/line_numbers/line_length_guideline_column"] = PropertyInfo(Variant::INT, "text_editor/line_numbers/line_length_guideline_column", PROPERTY_HINT_RANGE, "20, 160, 1");
 
 	_initial_set("text_editor/open_scripts/smooth_scrolling", true);
 	_initial_set("text_editor/open_scripts/v_scroll_speed", 80);
@@ -374,7 +378,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("text_editor/cursor/block_caret", false);
 	_initial_set("text_editor/cursor/caret_blink", true);
 	_initial_set("text_editor/cursor/caret_blink_speed", 0.65);
-	hints["text_editor/cursor/caret_blink_speed"] = PropertyInfo(Variant::REAL, "text_editor/cursor/caret_blink_speed", PROPERTY_HINT_RANGE, "0.1, 10, 0.1");
+	hints["text_editor/cursor/caret_blink_speed"] = PropertyInfo(Variant::REAL, "text_editor/cursor/caret_blink_speed", PROPERTY_HINT_RANGE, "0.1, 10, 0.01");
 	_initial_set("text_editor/cursor/right_click_moves_caret", true);
 
 	_initial_set("text_editor/completion/auto_brace_complete", false);
@@ -939,11 +943,8 @@ void EditorSettings::save() {
 	Error err = ResourceSaver::save(singleton->config_file_path, singleton);
 
 	if (err != OK) {
-		ERR_PRINT("Can't Save!");
-		return;
-	}
-
-	if (OS::get_singleton()->is_stdout_verbose()) {
+		ERR_PRINTS("Error saving editor settings to " + singleton->config_file_path);
+	} else if (OS::get_singleton()->is_stdout_verbose()) {
 		print_line("EditorSettings Save OK!");
 	}
 }

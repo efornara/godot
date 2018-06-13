@@ -349,7 +349,12 @@ void ScriptTextEditor::_convert_case(CaseStyle p_case) {
 		int end_col = te->get_selection_to_column();
 
 		for (int i = begin; i <= end; i++) {
-			String new_line = te->get_line(i);
+			int len = te->get_line(i).length();
+			if (i == end)
+				len -= len - end_col;
+			if (i == begin)
+				len -= begin_col;
+			String new_line = te->get_line(i).substr(i == begin ? begin_col : 0, len);
 
 			switch (p_case) {
 				case UPPER: {
@@ -364,10 +369,10 @@ void ScriptTextEditor::_convert_case(CaseStyle p_case) {
 			}
 
 			if (i == begin) {
-				new_line = te->get_line(i).left(begin_col) + new_line.right(begin_col);
+				new_line = te->get_line(i).left(begin_col) + new_line;
 			}
 			if (i == end) {
-				new_line = new_line.left(end_col) + te->get_line(i).right(end_col);
+				new_line = new_line + te->get_line(i).right(end_col);
 			}
 			te->set_line(i, new_line);
 		}
@@ -1687,13 +1692,13 @@ void ScriptTextEditor::register_editor() {
 	ED_SHORTCUT("script_text_editor/convert_to_lowercase", TTR("Convert To Lowercase"), KEY_MASK_SHIFT | KEY_F3);
 	ED_SHORTCUT("script_text_editor/capitalize", TTR("Capitalize"), KEY_MASK_SHIFT | KEY_F2);
 
-	ED_SHORTCUT("script_text_editor/find", TTR("Find.."), KEY_MASK_CMD | KEY_F);
+	ED_SHORTCUT("script_text_editor/find", TTR("Find..."), KEY_MASK_CMD | KEY_F);
 	ED_SHORTCUT("script_text_editor/find_next", TTR("Find Next"), KEY_F3);
 	ED_SHORTCUT("script_text_editor/find_previous", TTR("Find Previous"), KEY_MASK_SHIFT | KEY_F3);
-	ED_SHORTCUT("script_text_editor/replace", TTR("Replace.."), KEY_MASK_CMD | KEY_R);
+	ED_SHORTCUT("script_text_editor/replace", TTR("Replace..."), KEY_MASK_CMD | KEY_R);
 
-	ED_SHORTCUT("script_text_editor/goto_function", TTR("Goto Function.."), KEY_MASK_SHIFT | KEY_MASK_CMD | KEY_F);
-	ED_SHORTCUT("script_text_editor/goto_line", TTR("Goto Line.."), KEY_MASK_CMD | KEY_L);
+	ED_SHORTCUT("script_text_editor/goto_function", TTR("Goto Function..."), KEY_MASK_SHIFT | KEY_MASK_CMD | KEY_F);
+	ED_SHORTCUT("script_text_editor/goto_line", TTR("Goto Line..."), KEY_MASK_CMD | KEY_L);
 
 	ED_SHORTCUT("script_text_editor/contextual_help", TTR("Contextual Help"), KEY_MASK_SHIFT | KEY_F1);
 

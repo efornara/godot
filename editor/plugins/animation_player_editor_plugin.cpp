@@ -440,7 +440,7 @@ void AnimationPlayerEditor::_animation_save_as(const Ref<Resource> &p_resource) 
 		file->set_current_path(existing);
 	}
 	file->popup_centered_ratio();
-	file->set_title(TTR("Save Resource As.."));
+	file->set_title(TTR("Save Resource As..."));
 	current_option = RESOURCE_SAVE;
 }
 
@@ -1011,6 +1011,7 @@ void AnimationPlayerEditor::_seek_value_changed(float p_value, bool p_set) {
 
 		player->seek_delta(pos, pos - cpos);
 	} else {
+		player->stop(true);
 		player->seek(pos, true);
 	}
 
@@ -1678,10 +1679,10 @@ AnimationPlayerEditor::AnimationPlayerEditor(EditorNode *p_editor, AnimationPlay
 	onion_skinning->get_popup()->add_separator();
 	onion_skinning->get_popup()->add_item(TTR("Depth"), -1);
 	onion_skinning->get_popup()->set_item_disabled(onion_skinning->get_popup()->get_item_count() - 1, true);
-	onion_skinning->get_popup()->add_check_item(TTR("1 step"), ONION_SKINNING_1_STEP);
+	onion_skinning->get_popup()->add_radio_check_item(TTR("1 step"), ONION_SKINNING_1_STEP);
 	onion_skinning->get_popup()->set_item_checked(onion_skinning->get_popup()->get_item_count() - 1, true);
-	onion_skinning->get_popup()->add_check_item(TTR("2 steps"), ONION_SKINNING_2_STEPS);
-	onion_skinning->get_popup()->add_check_item(TTR("3 steps"), ONION_SKINNING_3_STEPS);
+	onion_skinning->get_popup()->add_radio_check_item(TTR("2 steps"), ONION_SKINNING_2_STEPS);
+	onion_skinning->get_popup()->add_radio_check_item(TTR("3 steps"), ONION_SKINNING_3_STEPS);
 	onion_skinning->get_popup()->add_separator();
 	onion_skinning->get_popup()->add_check_item(TTR("Differences Only"), ONION_SKINNING_DIFFERENCES_ONLY);
 	onion_skinning->get_popup()->add_check_item(TTR("Force White Modulate"), ONION_SKINNING_FORCE_WHITE_MODULATE);

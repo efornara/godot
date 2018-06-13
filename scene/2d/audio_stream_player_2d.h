@@ -69,7 +69,12 @@ private:
 	volatile bool active;
 	volatile float setplay;
 
+#ifdef TOOLS_ENABLED
+	volatile bool fake_active;
+#endif
+
 	float volume_db;
+	float pitch_scale;
 	bool autoplay;
 	StringName bus;
 
@@ -97,6 +102,9 @@ public:
 
 	void set_volume_db(float p_volume);
 	float get_volume_db() const;
+
+	void set_pitch_scale(float p_pitch_scale);
+	float get_pitch_scale() const;
 
 	void play(float p_from_pos = 0.0);
 	void seek(float p_seconds);

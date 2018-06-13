@@ -115,6 +115,15 @@ void ProjectSettingsEditor::_notification(int p_what) {
 	}
 }
 
+static bool _validate_action_name(const String &p_name) {
+	const CharType *cstr = p_name.c_str();
+	for (int i = 0; cstr[i]; i++)
+		if (cstr[i] == '/' || cstr[i] == ':' || cstr[i] == '"' ||
+				cstr[i] == '=' || cstr[i] == '\\' || cstr[i] < 32)
+			return false;
+	return true;
+}
+
 void ProjectSettingsEditor::_action_selected() {
 
 	TreeItem *ti = input_editor->get_selected();
@@ -137,12 +146,12 @@ void ProjectSettingsEditor::_action_edited() {
 	if (new_name == old_name)
 		return;
 
-	if (new_name.find("/") != -1 || new_name.find(":") != -1 || new_name == "") {
+	if (new_name == "" || !_validate_action_name(new_name)) {
 
 		ti->set_text(0, old_name);
 		add_at = "input/" + old_name;
 
-		message->set_text(TTR("Invalid action (anything goes but '/' or ':')."));
+		message->set_text(TTR("Invalid action name. It cannot be empty nor contain '/', ':', '=', '\\' or '\"'."));
 		message->popup_centered(Size2(300, 100) * EDSCALE);
 		return;
 	}
@@ -382,7 +391,7 @@ void ProjectSettingsEditor::_add_item(int p_item, Ref<InputEvent> p_exiting_even
 
 		case INPUT_KEY: {
 
-			press_a_key_label->set_text(TTR("Press a Key.."));
+			press_a_key_label->set_text(TTR("Press a Key..."));
 			last_wait_for_key = Ref<InputEvent>();
 			press_a_key->popup_centered(Size2(250, 80) * EDSCALE);
 			press_a_key->grab_focus();
@@ -830,9 +839,9 @@ void ProjectSettingsEditor::_action_check(String p_action) {
 		action_add->set_disabled(true);
 	} else {
 
-		if (p_action.find("/") != -1 || p_action.find(":") != -1) {
+		if (!_validate_action_name(p_action)) {
 
-			action_add_error->set_text(TTR("Can't contain '/' or ':'"));
+			action_add_error->set_text(TTR("Invalid action name. It cannot be empty nor contain '/', ':', '=', '\\' or '\"'."));
 			action_add_error->show();
 			action_add->set_disabled(true);
 			return;
@@ -1675,7 +1684,7 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 	add_prop_bar->add_child(memnew(VSeparator));
 
 	popup_copy_to_feature = memnew(MenuButton);
-	popup_copy_to_feature->set_text(TTR("Override For.."));
+	popup_copy_to_feature->set_text(TTR("Override For..."));
 	popup_copy_to_feature->set_disabled(true);
 	add_prop_bar->add_child(popup_copy_to_feature);
 
@@ -1739,7 +1748,7 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 	add_child(press_a_key);
 
 	l = memnew(Label);
-	l->set_text(TTR("Press a Key.."));
+	l->set_text(TTR("Press a Key..."));
 	l->set_anchors_and_margins_preset(Control::PRESET_WIDE);
 	l->set_align(Label::ALIGN_CENTER);
 	l->set_margin(MARGIN_TOP, 20);
@@ -1800,7 +1809,7 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 		tvb->add_child(thb);
 		thb->add_child(memnew(Label(TTR("Translations:"))));
 		thb->add_spacer();
-		Button *addtr = memnew(Button(TTR("Add..")));
+		Button *addtr = memnew(Button(TTR("Add...")));
 		addtr->connect("pressed", this, "_translation_file_open");
 		thb->add_child(addtr);
 		VBoxContainer *tmc = memnew(VBoxContainer);
@@ -1824,7 +1833,7 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 		tvb->add_child(thb);
 		thb->add_child(memnew(Label(TTR("Resources:"))));
 		thb->add_spacer();
-		Button *addtr = memnew(Button(TTR("Add..")));
+		Button *addtr = memnew(Button(TTR("Add...")));
 		addtr->connect("pressed", this, "_translation_res_file_open");
 		thb->add_child(addtr);
 		VBoxContainer *tmc = memnew(VBoxContainer);
@@ -1845,7 +1854,7 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 		tvb->add_child(thb);
 		thb->add_child(memnew(Label(TTR("Remaps by Locale:"))));
 		thb->add_spacer();
-		addtr = memnew(Button(TTR("Add..")));
+		addtr = memnew(Button(TTR("Add...")));
 		addtr->connect("pressed", this, "_translation_res_option_file_open");
 		translation_res_option_add_button = addtr;
 		thb->add_child(addtr);

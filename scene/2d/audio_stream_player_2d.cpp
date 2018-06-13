@@ -54,7 +54,7 @@ void AudioStreamPlayer2D::_mix_audio() {
 	int buffer_size = mix_buffer.size();
 
 	//mix
-	stream_playback->mix(buffer, 1.0, buffer_size);
+	stream_playback->mix(buffer, pitch_scale, buffer_size);
 
 	//write all outputs
 	for (int i = 0; i < output_count; i++) {
@@ -233,7 +233,6 @@ void AudioStreamPlayer2D::_notification(int p_what) {
 		//stop playing if no longer active
 		if (!active) {
 			set_physics_process_internal(false);
-			//do not update, this makes it easier to animate (will shut off otherwise)
 			//_change_notify("playing"); //update property in editor
 			emit_signal("finished");
 		}
@@ -279,6 +278,13 @@ float AudioStreamPlayer2D::get_volume_db() const {
 	return volume_db;
 }
 
+void AudioStreamPlayer2D::set_pitch_scale(float p_pitch_scale) {
+	pitch_scale = p_pitch_scale;
+}
+float AudioStreamPlayer2D::get_pitch_scale() const {
+	return pitch_scale;
+}
+
 void AudioStreamPlayer2D::play(float p_from_pos) {
 
 	if (stream_playback.is_valid()) {
@@ -305,6 +311,11 @@ void AudioStreamPlayer2D::stop() {
 }
 
 bool AudioStreamPlayer2D::is_playing() const {
+
+#ifdef TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint())
+		return fake_active;
+#endif
 
 	if (stream_playback.is_valid()) {
 		return active; // && stream_playback->is_playing();
@@ -350,11 +361,16 @@ bool AudioStreamPlayer2D::is_autoplay_enabled() {
 
 void AudioStreamPlayer2D::_set_playing(bool p_enable) {
 
+#ifdef TOOLS_ENABLED
+	fake_active = p_enable;
+#endif
+
 	if (p_enable)
 		play();
 	else
 		stop();
 }
+
 bool AudioStreamPlayer2D::_is_active() const {
 
 	return active;
@@ -419,6 +435,9 @@ void AudioStreamPlayer2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_volume_db", "volume_db"), &AudioStreamPlayer2D::set_volume_db);
 	ClassDB::bind_method(D_METHOD("get_volume_db"), &AudioStreamPlayer2D::get_volume_db);
 
+	ClassDB::bind_method(D_METHOD("set_pitch_scale", "pitch_scale"), &AudioStreamPlayer2D::set_pitch_scale);
+	ClassDB::bind_method(D_METHOD("get_pitch_scale"), &AudioStreamPlayer2D::get_pitch_scale);
+
 	ClassDB::bind_method(D_METHOD("play", "from_position"), &AudioStreamPlayer2D::play, DEFVAL(0.0));
 	ClassDB::bind_method(D_METHOD("seek", "to_position"), &AudioStreamPlayer2D::seek);
 	ClassDB::bind_method(D_METHOD("stop"), &AudioStreamPlayer2D::stop);
@@ -448,6 +467,7 @@ void AudioStreamPlayer2D::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "stream", PROPERTY_HINT_RESOURCE_TYPE, "AudioStream"), "set_stream", "get_stream");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "volume_db", PROPERTY_HINT_RANGE, "-80,24"), "set_volume_db", "get_volume_db");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "pitch_scale", PROPERTY_HINT_RANGE, "0.01,32,0.01"), "set_pitch_scale", "get_pitch_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "playing", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "_set_playing", "is_playing");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "autoplay"), "set_autoplay", "is_autoplay_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "max_distance", PROPERTY_HINT_RANGE, "1,65536,1"), "set_max_distance", "get_max_distance");
@@ -461,6 +481,7 @@ void AudioStreamPlayer2D::_bind_methods() {
 AudioStreamPlayer2D::AudioStreamPlayer2D() {
 
 	volume_db = 0;
+	pitch_scale = 1.0;
 	autoplay = false;
 	setseek = -1;
 	active = false;

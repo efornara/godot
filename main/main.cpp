@@ -106,6 +106,7 @@ static OS::VideoMode video_mode;
 static bool init_maximized = false;
 static bool init_windowed = false;
 static bool init_fullscreen = false;
+static bool init_always_on_top = false;
 static bool init_use_custom_pos = false;
 #ifdef DEBUG_ENABLED
 static bool debug_collisions = false;
@@ -126,6 +127,7 @@ static bool disable_render_loop = false;
 static int fixed_fps = -1;
 static bool auto_build_solutions = false;
 static bool auto_quit = false;
+static bool print_fps = false;
 
 static OS::ProcessID allow_focus_steal_pid = 0;
 
@@ -236,6 +238,7 @@ void Main::print_help(const char *p_binary) {
 	OS::get_singleton()->print("  -f, --fullscreen                 Request fullscreen mode.\n");
 	OS::get_singleton()->print("  -m, --maximized                  Request a maximized window.\n");
 	OS::get_singleton()->print("  -w, --windowed                   Request windowed mode.\n");
+	OS::get_singleton()->print("  -t, --always-on-top              Request an always-on-top window.\n");
 	OS::get_singleton()->print("  --resolution <W>x<H>             Request window resolution.\n");
 	OS::get_singleton()->print("  --position <X>,<Y>               Request window position.\n");
 	OS::get_singleton()->print("  --low-dpi                        Force low-DPI mode (macOS and Windows only).\n");
@@ -256,6 +259,7 @@ void Main::print_help(const char *p_binary) {
 	OS::get_singleton()->print("  --disable-render-loop            Disable render loop so rendering only occurs when called explicitly from script.\n");
 	OS::get_singleton()->print("  --disable-crash-handler          Disable crash handler when supported by the platform code.\n");
 	OS::get_singleton()->print("  --fixed-fps <fps>                Force a fixed number of frames per second. This setting disables real-time synchronization.\n");
+	OS::get_singleton()->print("  --print-fps                      Print the frames per second to the stdout.\n");
 	OS::get_singleton()->print("\n");
 
 	OS::get_singleton()->print("Standalone tools:\n");
@@ -444,6 +448,9 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		} else if (I->get() == "-w" || I->get() == "--windowed") { // force windowed window
 
 			init_windowed = true;
+		} else if (I->get() == "-t" || I->get() == "--always-on-top") { // force always-on-top window
+
+			init_always_on_top = true;
 		} else if (I->get() == "--profiling") { // enable profiling
 
 			use_debug_profiler = true;
@@ -663,6 +670,8 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				OS::get_singleton()->print("Missing fixed-fps argument, aborting.\n");
 				goto error;
 			}
+		} else if (I->get() == "--print-fps") {
+			print_fps = true;
 		} else if (I->get() == "--disable-crash-handler") {
 			OS::get_singleton()->disable_crash_handler();
 		} else {
@@ -685,6 +694,19 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		}
 
 		I = N;
+	}
+
+	if (globals->setup(game_path, main_pack, upwards) == OK) {
+		found_project = true;
+	} else {
+
+#ifdef TOOLS_ENABLED
+		editor = false;
+#else
+		OS::get_singleton()->print("Error: Could not load game path '%s'.\n", game_path.ascii().get_data());
+
+		goto error;
+#endif
 	}
 
 	GLOBAL_DEF("memory/limits/multithreaded_server/rid_pool_prealloc", 60);
@@ -758,19 +780,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	}
 
 #endif
-
-	if (globals->setup(game_path, main_pack, upwards) == OK) {
-		found_project = true;
-	} else {
-
-#ifdef TOOLS_ENABLED
-		editor = false;
-#else
-		OS::get_singleton()->print("Error: Could not load game path '%s'.\n", game_path.ascii().get_data());
-
-		goto error;
-#endif
-	}
 
 	GLOBAL_DEF("logging/file_logging/enable_file_logging", false);
 	GLOBAL_DEF("logging/file_logging/log_path", "user://logs/log.txt");
@@ -854,6 +863,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	GLOBAL_DEF("display/window/size/resizable", true);
 	GLOBAL_DEF("display/window/size/borderless", false);
 	GLOBAL_DEF("display/window/size/fullscreen", false);
+	GLOBAL_DEF("display/window/size/always_on_top", false);
 	GLOBAL_DEF("display/window/size/test_width", 0);
 	GLOBAL_DEF("display/window/size/test_height", 0);
 
@@ -876,6 +886,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		video_mode.resizable = GLOBAL_GET("display/window/size/resizable");
 		video_mode.borderless_window = GLOBAL_GET("display/window/size/borderless");
 		video_mode.fullscreen = GLOBAL_GET("display/window/size/fullscreen");
+		video_mode.always_on_top = GLOBAL_GET("display/window/size/always_on_top");
 	}
 
 	if (!force_lowdpi) {
@@ -966,7 +977,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	Engine::get_singleton()->set_iterations_per_second(GLOBAL_DEF("physics/common/physics_fps", 60));
 	Engine::get_singleton()->set_target_fps(GLOBAL_DEF("debug/settings/fps/force_fps", 0));
 
-	GLOBAL_DEF("debug/settings/stdout/print_fps", OS::get_singleton()->is_stdout_verbose());
+	GLOBAL_DEF("debug/settings/stdout/print_fps", false);
 
 	if (!OS::get_singleton()->_verbose_stdout) //overridden
 		OS::get_singleton()->_verbose_stdout = GLOBAL_DEF("debug/settings/stdout/verbose_stdout", false);
@@ -1082,6 +1093,9 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 	} else if (init_fullscreen) {
 		OS::get_singleton()->set_window_fullscreen(true);
 	}
+	if (init_always_on_top) {
+		OS::get_singleton()->set_window_always_on_top(true);
+	}
 
 	register_server_types();
 
@@ -1147,13 +1161,16 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 	GLOBAL_DEF("application/config/icon", String());
 	ProjectSettings::get_singleton()->set_custom_property_info("application/config/icon", PropertyInfo(Variant::STRING, "application/config/icon", PROPERTY_HINT_FILE, "*.png,*.webp"));
 
-	if (bool(GLOBAL_DEF("display/window/handheld/emulate_touchscreen", false))) {
-		if (!OS::get_singleton()->has_touchscreen_ui_hint() && Input::get_singleton() && !editor) {
-			//only if no touchscreen ui hint, set emulation
-			InputDefault *id = Object::cast_to<InputDefault>(Input::get_singleton());
-			if (id)
+	InputDefault *id = Object::cast_to<InputDefault>(Input::get_singleton());
+	if (id) {
+		if (bool(GLOBAL_DEF("display/window/handheld/emulate_touchscreen", false)) && !editor) {
+			if (!OS::get_singleton()->has_touchscreen_ui_hint()) {
+				//only if no touchscreen ui hint, set emulation
 				id->set_emulate_touch(true);
+			}
 		}
+
+		id->set_emulate_mouse_from_touch(bool(GLOBAL_DEF("display/window/handheld/emulate_mouse_from_touch", true)));
 	}
 
 	MAIN_PRINT("Main: Load Remaps");
@@ -1319,7 +1336,7 @@ bool Main::start() {
 		DocData docsrc;
 		Map<String, String> doc_data_classes;
 		Set<String> checked_paths;
-		print_line("Loading docs..");
+		print_line("Loading docs...");
 
 		for (int i = 0; i < _doc_data_class_path_count; i++) {
 			String path = doc_tool.plus_file(_doc_data_class_paths[i].path);
@@ -1337,14 +1354,14 @@ bool Main::start() {
 		checked_paths.insert(index_path);
 		print_line("Loading docs from: " + index_path);
 
-		print_line("Merging docs..");
+		print_line("Merging docs...");
 		doc.merge_from(docsrc);
 		for (Set<String>::Element *E = checked_paths.front(); E; E = E->next()) {
 			print_line("Erasing old docs at: " + E->get());
 			DocData::erase_classes(E->get());
 		}
 
-		print_line("Generating new docs..");
+		print_line("Generating new docs...");
 		doc.save_classes(index_path, doc_data_classes);
 
 		return false;
@@ -1838,9 +1855,13 @@ bool Main::iteration() {
 
 	if (frame > 1000000) {
 
-		if (GLOBAL_DEF("debug/settings/stdout/print_fps", OS::get_singleton()->is_stdout_verbose()) && !editor) {
-			print_line("FPS: " + itos(frames));
-		};
+		if (editor || project_manager) {
+			if (print_fps) {
+				print_line("Editor FPS: " + itos(frames));
+			}
+		} else if (GLOBAL_GET("debug/settings/stdout/print_fps") || print_fps) {
+			print_line("Game FPS: " + itos(frames));
+		}
 
 		Engine::get_singleton()->_fps = frames;
 		performance->set_process_time(USEC_TO_SEC(idle_process_max));

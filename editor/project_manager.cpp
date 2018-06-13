@@ -250,8 +250,10 @@ private:
 
 	void _create_folder() {
 
-		if (project_name->get_text() == "" || created_folder_path != "")
+		if (project_name->get_text() == "" || created_folder_path != "" || project_name->get_text().ends_with(".") || project_name->get_text().ends_with(" ")) {
+			set_message(TTR("Invalid Project Name."), MESSAGE_WARNING);
 			return;
+		}
 
 		DirAccess *d = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 		if (d->change_dir(project_path->get_text()) == OK) {
@@ -717,9 +719,11 @@ void ProjectManager::_update_project_buttons() {
 		item->update();
 	}
 
-	erase_btn->set_disabled(selected_list.size() < 1);
-	open_btn->set_disabled(selected_list.size() < 1);
-	rename_btn->set_disabled(selected_list.size() < 1);
+	bool empty_selection = selected_list.empty();
+	erase_btn->set_disabled(empty_selection);
+	open_btn->set_disabled(empty_selection);
+	rename_btn->set_disabled(empty_selection);
+	run_btn->set_disabled(empty_selection);
 }
 
 void ProjectManager::_panel_input(const Ref<InputEvent> &p_ev, Node *p_hb) {

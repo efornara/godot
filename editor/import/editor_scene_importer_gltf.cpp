@@ -762,14 +762,22 @@ PoolVector<Color> EditorSceneImporterGLTF::_decode_accessor_as_color(GLTFState &
 	PoolVector<Color> ret;
 	if (attribs.size() == 0)
 		return ret;
-	ERR_FAIL_COND_V(attribs.size() % 4 != 0, ret);
+	int type = state.accessors[p_accessor].type;
+	ERR_FAIL_COND_V(!(type == TYPE_VEC3 || type == TYPE_VEC4), ret);
+	int components;
+	if (type == TYPE_VEC3) {
+		components = 3;
+	} else { // TYPE_VEC4
+		components = 4;
+	}
+	ERR_FAIL_COND_V(attribs.size() % components != 0, ret);
 	const double *attribs_ptr = attribs.ptr();
-	int ret_size = attribs.size() / 4;
+	int ret_size = attribs.size() / components;
 	ret.resize(ret_size);
 	{
 		PoolVector<Color>::Write w = ret.write();
 		for (int i = 0; i < ret_size; i++) {
-			w[i] = Color(attribs_ptr[i * 4 + 0], attribs_ptr[i * 4 + 1], attribs_ptr[i * 4 + 2], attribs_ptr[i * 4 + 3]);
+			w[i] = Color(attribs_ptr[i * 4 + 0], attribs_ptr[i * 4 + 1], attribs_ptr[i * 4 + 2], components == 4 ? attribs_ptr[i * 4 + 3] : 1.0);
 		}
 	}
 	return ret;
@@ -1155,7 +1163,7 @@ Error EditorSceneImporterGLTF::_parse_images(GLTFState &state, const String &p_b
 			continue;
 		}
 
-		if (mimetype.findn("jpg") != -1) {
+		if (mimetype.findn("jpeg") != -1) {
 			//is a jpg
 			Ref<Image> img = Image::_jpg_mem_loader_func(data_ptr, data_size);
 
@@ -1724,14 +1732,19 @@ void EditorSceneImporterGLTF::_generate_bone(GLTFState &state, int p_node, Vecto
 	for (int i = 0; i < n->joints.size(); i++) {
 		ERR_FAIL_COND(n->joints[i].skin < 0);
 
-		int bone_index = skeletons[n->joints[i].skin]->get_bone_count();
-		skeletons[n->joints[i].skin]->add_bone(n->name);
-		if (p_parent_bones.size()) {
-			skeletons[n->joints[i].skin]->set_bone_parent(bone_index, p_parent_bones[i]);
-		}
-		skeletons[n->joints[i].skin]->set_bone_rest(bone_index, state.skins[n->joints[i].skin].bones[n->joints[i].bone].inverse_bind.affine_inverse());
+		int bone_index = n->joints[i].bone;
 
-		n->godot_nodes.push_back(skeletons[n->joints[i].skin]);
+		Skeleton *s = skeletons[n->joints[i].skin];
+		while (s->get_bone_count() <= bone_index) {
+			s->add_bone("Bone " + itos(s->get_bone_count()));
+		}
+
+		if (p_parent_bones.size()) {
+			s->set_bone_parent(bone_index, p_parent_bones[i]);
+		}
+		s->set_bone_rest(bone_index, state.skins[n->joints[i].skin].bones[n->joints[i].bone].inverse_bind.affine_inverse());
+
+		n->godot_nodes.push_back(s);
 		n->joints[i].godot_bone_index = bone_index;
 		parent_bones.push_back(bone_index);
 	}
@@ -1875,6 +1888,8 @@ void EditorSceneImporterGLTF::_import_animation(GLTFState &state, AnimationPlaye
 	animation.instance();
 	animation->set_name(name);
 
+	float length = 0;
+
 	for (Map<int, GLTFAnimation::Track>::Element *E = anim.tracks.front(); E; E = E->next()) {
 
 		const GLTFAnimation::Track &track = E->get();
@@ -1893,8 +1908,6 @@ void EditorSceneImporterGLTF::_import_animation(GLTFState &state, AnimationPlaye
 				node_path = ap->get_parent()->get_path_to(node->godot_nodes[i]);
 			}
 
-			float length = 0;
-
 			for (int i = 0; i < track.rotation_track.times.size(); i++) {
 				length = MAX(length, track.rotation_track.times[i]);
 			}
@@ -1910,8 +1923,6 @@ void EditorSceneImporterGLTF::_import_animation(GLTFState &state, AnimationPlaye
 					length = MAX(length, track.weight_tracks[i].times[j]);
 				}
 			}
-
-			animation->set_length(length);
 
 			if (track.rotation_track.values.size() || track.translation_track.values.size() || track.scale_track.values.size()) {
 				//make transform track
@@ -2030,6 +2041,7 @@ void EditorSceneImporterGLTF::_import_animation(GLTFState &state, AnimationPlaye
 			}
 		}
 	}
+	animation->set_length(length);
 
 	ap->add_animation(name, animation);
 }

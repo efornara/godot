@@ -1,5 +1,10 @@
 using System;
 using System.Runtime.InteropServices;
+#if REAL_T_IS_DOUBLE
+using real_t = System.Double;
+#else
+using real_t = System.Single;
+#endif
 
 namespace Godot
 {
@@ -23,8 +28,8 @@ namespace Godot
 
         public Transform LookingAt(Vector3 target, Vector3 up)
         {
-            Transform t = this;
-            t.set_look_at(origin, target, up);
+            var t = this;
+            t.SetLookAt(origin, target, up);
             return t;
         }
 
@@ -33,7 +38,7 @@ namespace Godot
             return new Transform(basis.Orthonormalized(), origin);
         }
 
-        public Transform Rotated(Vector3 axis, float phi)
+        public Transform Rotated(Vector3 axis, real_t phi)
         {
             return new Transform(new Basis(axis, phi), new Vector3()) * this;
         }
@@ -43,7 +48,7 @@ namespace Godot
             return new Transform(basis.Scaled(scale), origin * scale);
         }
 
-        public void set_look_at(Vector3 eye, Vector3 target, Vector3 up)
+        public void SetLookAt(Vector3 eye, Vector3 target, Vector3 up)
         {
             // Make rotation matrix
             // Z vector
@@ -92,21 +97,22 @@ namespace Godot
 
             return new Vector3
             (
-                (basis[0, 0] * vInv.x) + (basis[1, 0] * vInv.y) + (basis[2, 0] * vInv.z),
-                (basis[0, 1] * vInv.x) + (basis[1, 1] * vInv.y) + (basis[2, 1] * vInv.z),
-                (basis[0, 2] * vInv.x) + (basis[1, 2] * vInv.y) + (basis[2, 2] * vInv.z)
+                basis[0, 0] * vInv.x + basis[1, 0] * vInv.y + basis[2, 0] * vInv.z,
+                basis[0, 1] * vInv.x + basis[1, 1] * vInv.y + basis[2, 1] * vInv.z,
+                basis[0, 2] * vInv.x + basis[1, 2] * vInv.y + basis[2, 2] * vInv.z
             );
         }
-
+        
+        // Constructors 
         public Transform(Vector3 xAxis, Vector3 yAxis, Vector3 zAxis, Vector3 origin)
         {
-            this.basis = Basis.CreateFromAxes(xAxis, yAxis, zAxis);
+            basis = Basis.CreateFromAxes(xAxis, yAxis, zAxis);
             this.origin = origin;
         }
 
         public Transform(Quat quat, Vector3 origin)
         {
-            this.basis = new Basis(quat);
+            basis = new Basis(quat);
             this.origin = origin;
         }
 
@@ -157,8 +163,8 @@ namespace Godot
         {
             return String.Format("{0} - {1}", new object[]
             {
-                this.basis.ToString(),
-                this.origin.ToString()
+                basis.ToString(),
+                origin.ToString()
             });
         }
 
@@ -166,8 +172,8 @@ namespace Godot
         {
             return String.Format("{0} - {1}", new object[]
             {
-                this.basis.ToString(format),
-                this.origin.ToString(format)
+                basis.ToString(format),
+                origin.ToString(format)
             });
         }
     }

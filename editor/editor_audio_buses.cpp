@@ -719,6 +719,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	effects->set_hide_root(true);
 	effects->set_custom_minimum_size(Size2(0, 100) * EDSCALE);
 	effects->set_hide_folding(true);
+	effects->set_v_size_flags(SIZE_EXPAND_FILL);
 	vb->add_child(effects);
 	effects->connect("item_edited", this, "_effect_edited");
 	effects->connect("cell_selected", this, "_effect_selected");
@@ -1000,7 +1001,7 @@ void EditorAudioBuses::_select_layout() {
 void EditorAudioBuses::_save_as_layout() {
 
 	file_dialog->set_mode(EditorFileDialog::MODE_SAVE_FILE);
-	file_dialog->set_title(TTR("Save Audio Bus Layout As.."));
+	file_dialog->set_title(TTR("Save Audio Bus Layout As..."));
 	file_dialog->set_current_path(edited_path);
 	file_dialog->popup_centered_ratio();
 	new_layout = false;
@@ -1009,7 +1010,7 @@ void EditorAudioBuses::_save_as_layout() {
 void EditorAudioBuses::_new_layout() {
 
 	file_dialog->set_mode(EditorFileDialog::MODE_SAVE_FILE);
-	file_dialog->set_title(TTR("Location for New Layout.."));
+	file_dialog->set_title(TTR("Location for New Layout..."));
 	file_dialog->set_current_path(edited_path);
 	file_dialog->popup_centered_ratio();
 	new_layout = true;
@@ -1151,6 +1152,7 @@ EditorAudioBuses::EditorAudioBuses() {
 	bus_scroll->set_enable_v_scroll(false);
 	add_child(bus_scroll);
 	bus_hb = memnew(HBoxContainer);
+	bus_hb->set_v_size_flags(SIZE_EXPAND_FILL);
 	bus_scroll->add_child(bus_hb);
 
 	save_timer = memnew(Timer);

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Script" inherits="Resource" category="Core" version="3.0.2">
+<class name="Script" inherits="Resource" category="Core" version="3.0.3">
 	<brief_description>
 		A class stored as a resource.
 	</brief_description>
@@ -24,6 +24,7 @@
 			<return type="Script">
 			</return>
 			<description>
+				Returns the script directly inherited by this script.
 			</description>
 		</method>
 		<method name="get_instance_base_type" qualifiers="const">

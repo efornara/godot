@@ -70,6 +70,9 @@ public:
 	virtual void start() = 0;
 	virtual int get_mix_rate() const = 0;
 	virtual SpeakerMode get_speaker_mode() const = 0;
+	virtual Array get_device_list();
+	virtual String get_device();
+	virtual void set_device(String device) {}
 	virtual void lock() = 0;
 	virtual void unlock() = 0;
 	virtual void finish() = 0;
@@ -130,6 +133,7 @@ private:
 	float channel_disable_threshold_db;
 	uint32_t channel_disable_frames;
 
+	int channel_count;
 	int to_mix;
 
 	struct Bus {
@@ -185,6 +189,8 @@ private:
 	size_t audio_data_max_mem;
 
 	Mutex *audio_data_lock;
+
+	void init_channels_and_buffers();
 
 	void _mix_step();
 
@@ -296,6 +302,10 @@ public:
 
 	void set_bus_layout(const Ref<AudioBusLayout> &p_bus_layout);
 	Ref<AudioBusLayout> generate_bus_layout() const;
+
+	Array get_device_list();
+	String get_device();
+	void set_device(String device);
 
 	AudioServer();
 	virtual ~AudioServer();

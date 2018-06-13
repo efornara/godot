@@ -1868,16 +1868,29 @@ bool Node::has_persistent_groups() const {
 
 	return false;
 }
-void Node::_print_tree(const Node *p_node) {
+void Node::_print_tree_pretty(const String prefix, const bool last) {
 
-	print_line(String(p_node->get_path_to(this)));
-	for (int i = 0; i < data.children.size(); i++)
-		data.children[i]->_print_tree(p_node);
+	String new_prefix = last ? String::utf8(" ┖╴") : String::utf8(" ┠╴");
+	print_line(prefix + new_prefix + String(get_name()));
+	for (int i = 0; i < data.children.size(); i++) {
+		new_prefix = last ? String::utf8("   ") : String::utf8(" ┃ ");
+		data.children[i]->_print_tree_pretty(prefix + new_prefix, i == data.children.size() - 1);
+	}
+}
+
+void Node::print_tree_pretty() {
+	_print_tree_pretty("", true);
 }
 
 void Node::print_tree() {
 
 	_print_tree(this);
+}
+
+void Node::_print_tree(const Node *p_node) {
+	print_line(String(p_node->get_path_to(this)));
+	for (int i = 0; i < data.children.size(); i++)
+		data.children[i]->_print_tree(p_node);
 }
 
 void Node::_propagate_reverse_notification(int p_notification) {
@@ -2723,18 +2736,21 @@ Array Node::_get_children() const {
 	return arr;
 }
 
-#ifdef TOOLS_ENABLED
 void Node::set_import_path(const NodePath &p_import_path) {
 
+#ifdef TOOLS_ENABLED
 	data.import_path = p_import_path;
+#endif
 }
 
 NodePath Node::get_import_path() const {
 
+#ifdef TOOLS_ENABLED
 	return data.import_path;
-}
-
+#else
+	return NodePath();
 #endif
+}
 
 static void _add_nodes_to_options(const Node *p_base, const Node *p_node, List<String> *r_options) {
 
@@ -2837,6 +2853,7 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("remove_and_skip"), &Node::remove_and_skip);
 	ClassDB::bind_method(D_METHOD("get_index"), &Node::get_index);
 	ClassDB::bind_method(D_METHOD("print_tree"), &Node::print_tree);
+	ClassDB::bind_method(D_METHOD("print_tree_pretty"), &Node::print_tree_pretty);
 	ClassDB::bind_method(D_METHOD("set_filename", "filename"), &Node::set_filename);
 	ClassDB::bind_method(D_METHOD("get_filename"), &Node::get_filename);
 	ClassDB::bind_method(D_METHOD("propagate_notification", "what"), &Node::propagate_notification);
@@ -2889,12 +2906,9 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("rpc_config", "method", "mode"), &Node::rpc_config);
 	ClassDB::bind_method(D_METHOD("rset_config", "property", "mode"), &Node::rset_config);
 
-#ifdef TOOLS_ENABLED
 	ClassDB::bind_method(D_METHOD("_set_import_path", "import_path"), &Node::set_import_path);
 	ClassDB::bind_method(D_METHOD("_get_import_path"), &Node::get_import_path);
 	ADD_PROPERTYNZ(PropertyInfo(Variant::NODE_PATH, "_import_path", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_import_path", "_get_import_path");
-
-#endif
 
 	{
 		MethodInfo mi;

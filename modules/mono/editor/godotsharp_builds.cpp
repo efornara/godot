@@ -39,6 +39,10 @@
 #include "bindings_generator.h"
 #include "godotsharp_editor.h"
 
+#define PROP_NAME_MSBUILD_MONO "MSBuild (Mono)"
+#define PROP_NAME_MSBUILD_VS "MSBuild (VS Build Tools)"
+#define PROP_NAME_XBUILD "xbuild (Deprecated)"
+
 void godot_icall_BuildInstance_ExitCallback(MonoString *p_solution, MonoString *p_config, int p_exit_code) {
 
 	String solution = GDMonoMarshal::mono_string_to_godot(p_solution);
@@ -76,46 +80,42 @@ String _find_build_engine_on_unix(const String &p_name) {
 }
 #endif
 
-void godot_icall_BuildInstance_get_MSBuildInfo(MonoString **r_msbuild_path, MonoString **r_framework_path) {
+MonoString *godot_icall_BuildInstance_get_MSBuildPath() {
 
 	GodotSharpBuilds::BuildTool build_tool = GodotSharpBuilds::BuildTool(int(EditorSettings::get_singleton()->get("mono/builds/build_tool")));
 
 #if defined(WINDOWS_ENABLED)
 	switch (build_tool) {
-		case GodotSharpBuilds::MSBUILD: {
+		case GodotSharpBuilds::MSBUILD_VS: {
 			static String msbuild_tools_path = MonoRegUtils::find_msbuild_tools_path();
 
 			if (msbuild_tools_path.length()) {
 				if (!msbuild_tools_path.ends_with("\\"))
 					msbuild_tools_path += "\\";
 
-				// FrameworkPathOverride
-				const MonoRegInfo &mono_reg_info = GDMono::get_singleton()->get_mono_reg_info();
-				if (mono_reg_info.assembly_dir.length()) {
-					*r_msbuild_path = GDMonoMarshal::mono_string_from_godot(msbuild_tools_path + "MSBuild.exe");
-
-					String framework_path = path_join(mono_reg_info.assembly_dir, "mono", "4.5");
-					*r_framework_path = GDMonoMarshal::mono_string_from_godot(framework_path);
-				} else {
-					ERR_PRINT("Cannot find Mono's assemblies directory in the registry");
-				}
-
-				return;
+				return GDMonoMarshal::mono_string_from_godot(msbuild_tools_path + "MSBuild.exe");
 			}
 
 			if (OS::get_singleton()->is_stdout_verbose())
-				OS::get_singleton()->print("Cannot find System's MSBuild. Trying with Mono's...\n");
-		} // fall through
+				OS::get_singleton()->print("Cannot find executable for '" PROP_NAME_MSBUILD_VS "'. Trying with '" PROP_NAME_MSBUILD_MONO "'...\n");
+		} // FALL THROUGH
 		case GodotSharpBuilds::MSBUILD_MONO: {
 			String msbuild_path = GDMono::get_singleton()->get_mono_reg_info().bin_dir.plus_file("msbuild.bat");
 
 			if (!FileAccess::exists(msbuild_path)) {
-				WARN_PRINTS("Cannot find msbuild ('mono/builds/build_tool'). Tried with path: " + msbuild_path);
+				WARN_PRINTS("Cannot find executable for '" PROP_NAME_MSBUILD_MONO "'. Tried with path: " + msbuild_path);
 			}
 
-			*r_msbuild_path = GDMonoMarshal::mono_string_from_godot(msbuild_path);
+			return GDMonoMarshal::mono_string_from_godot(msbuild_path);
+		} break;
+		case GodotSharpBuilds::XBUILD: {
+			String xbuild_path = GDMono::get_singleton()->get_mono_reg_info().bin_dir.plus_file("xbuild.bat");
 
-			return;
+			if (!FileAccess::exists(xbuild_path)) {
+				WARN_PRINTS("Cannot find executable for '" PROP_NAME_XBUILD "'. Tried with path: " + xbuild_path);
+			}
+
+			return GDMonoMarshal::mono_string_from_godot(xbuild_path);
 		} break;
 		default:
 			ERR_EXPLAIN("You don't deserve to live");
@@ -125,31 +125,74 @@ void godot_icall_BuildInstance_get_MSBuildInfo(MonoString **r_msbuild_path, Mono
 	static String msbuild_path = _find_build_engine_on_unix("msbuild");
 	static String xbuild_path = _find_build_engine_on_unix("xbuild");
 
-	if (build_tool != GodotSharpBuilds::XBUILD) {
-		if (msbuild_path.empty()) {
-			WARN_PRINT("Cannot find msbuild ('mono/builds/build_tool').");
-			return;
+	if (build_tool == GodotSharpBuilds::XBUILD) {
+		if (xbuild_path.empty()) {
+			WARN_PRINT("Cannot find binary for '" PROP_NAME_XBUILD "'");
+			return NULL;
 		}
 	} else {
-		if (xbuild_path.empty()) {
-			WARN_PRINT("Cannot find xbuild ('mono/builds/build_tool').");
-			return;
+		if (msbuild_path.empty()) {
+			WARN_PRINT("Cannot find binary for '" PROP_NAME_MSBUILD_MONO "'");
+			return NULL;
 		}
 	}
 
-	*r_msbuild_path = GDMonoMarshal::mono_string_from_godot(build_tool != GodotSharpBuilds::XBUILD ? msbuild_path : xbuild_path);
-
-	return;
+	return GDMonoMarshal::mono_string_from_godot(build_tool != GodotSharpBuilds::XBUILD ? msbuild_path : xbuild_path);
 #else
-	ERR_PRINT("Not implemented on this platform");
-	return;
+	(void)build_tool; // UNUSED
+
+	ERR_EXPLAIN("Not implemented on this platform");
+	ERR_FAIL_V(NULL);
+#endif
+}
+
+MonoString *godot_icall_BuildInstance_get_FrameworkPath() {
+
+#if defined(WINDOWS_ENABLED)
+	const MonoRegInfo &mono_reg_info = GDMono::get_singleton()->get_mono_reg_info();
+	if (mono_reg_info.assembly_dir.length()) {
+		String framework_path = path_join(mono_reg_info.assembly_dir, "mono", "4.5");
+		return GDMonoMarshal::mono_string_from_godot(framework_path);
+	}
+
+	ERR_EXPLAIN("Cannot find Mono's assemblies directory in the registry");
+	ERR_FAIL_V(NULL);
+#else
+	return NULL;
+#endif
+}
+
+MonoString *godot_icall_BuildInstance_get_MonoWindowsBinDir() {
+
+#if defined(WINDOWS_ENABLED)
+	const MonoRegInfo &mono_reg_info = GDMono::get_singleton()->get_mono_reg_info();
+	if (mono_reg_info.bin_dir.length()) {
+		return GDMonoMarshal::mono_string_from_godot(mono_reg_info.bin_dir);
+	}
+
+	ERR_EXPLAIN("Cannot find Mono's binaries directory in the registry");
+	ERR_FAIL_V(NULL);
+#else
+	return NULL;
+#endif
+}
+
+MonoBoolean godot_icall_BuildInstance_get_UsingMonoMSBuildOnWindows() {
+
+#if defined(WINDOWS_ENABLED)
+	return GodotSharpBuilds::BuildTool(int(EditorSettings::get_singleton()->get("mono/builds/build_tool"))) == GodotSharpBuilds::MSBUILD_MONO;
+#else
+	return false;
 #endif
 }
 
 void GodotSharpBuilds::_register_internal_calls() {
 
 	mono_add_internal_call("GodotSharpTools.Build.BuildSystem::godot_icall_BuildInstance_ExitCallback", (void *)godot_icall_BuildInstance_ExitCallback);
-	mono_add_internal_call("GodotSharpTools.Build.BuildInstance::godot_icall_BuildInstance_get_MSBuildInfo", (void *)godot_icall_BuildInstance_get_MSBuildInfo);
+	mono_add_internal_call("GodotSharpTools.Build.BuildInstance::godot_icall_BuildInstance_get_MSBuildPath", (void *)godot_icall_BuildInstance_get_MSBuildPath);
+	mono_add_internal_call("GodotSharpTools.Build.BuildInstance::godot_icall_BuildInstance_get_FrameworkPath", (void *)godot_icall_BuildInstance_get_FrameworkPath);
+	mono_add_internal_call("GodotSharpTools.Build.BuildInstance::godot_icall_BuildInstance_get_MonoWindowsBinDir", (void *)godot_icall_BuildInstance_get_MonoWindowsBinDir);
+	mono_add_internal_call("GodotSharpTools.Build.BuildInstance::godot_icall_BuildInstance_get_UsingMonoMSBuildOnWindows", (void *)godot_icall_BuildInstance_get_UsingMonoMSBuildOnWindows);
 }
 
 void GodotSharpBuilds::show_build_error_dialog(const String &p_message) {
@@ -201,7 +244,7 @@ bool GodotSharpBuilds::copy_api_assembly(const String &p_src_dir, const String &
 		memdelete(da);
 
 		if (err != OK) {
-			show_build_error_dialog("Failed to copy " API_ASSEMBLY_NAME ".dll");
+			show_build_error_dialog("Failed to copy " + assembly_file);
 			return false;
 		}
 
@@ -297,7 +340,7 @@ bool GodotSharpBuilds::make_api_sln(APIAssembly::Type p_api_type) {
 	return true;
 }
 
-bool GodotSharpBuilds::build_project_blocking() {
+bool GodotSharpBuilds::build_project_blocking(const String &p_config) {
 
 	if (!FileAccess::exists(GodotSharpDirs::get_project_sln_path()))
 		return true; // No solution to build
@@ -312,7 +355,7 @@ bool GodotSharpBuilds::build_project_blocking() {
 
 	pr.step("Building project solution");
 
-	MonoBuildInfo build_info(GodotSharpDirs::get_project_sln_path(), "Tools");
+	MonoBuildInfo build_info(GodotSharpDirs::get_project_sln_path(), p_config);
 	if (!GodotSharpBuilds::get_singleton()->build(build_info)) {
 		GodotSharpBuilds::show_build_error_dialog("Failed to build project solution");
 		return false;
@@ -321,6 +364,11 @@ bool GodotSharpBuilds::build_project_blocking() {
 	pr.step("Done");
 
 	return true;
+}
+
+bool GodotSharpBuilds::editor_build_callback() {
+
+	return build_project_blocking("Tools");
 }
 
 GodotSharpBuilds *GodotSharpBuilds::singleton = NULL;
@@ -376,25 +424,19 @@ GodotSharpBuilds::GodotSharpBuilds() {
 
 	singleton = this;
 
-	EditorNode::get_singleton()->add_build_callback(&GodotSharpBuilds::build_project_blocking);
+	EditorNode::get_singleton()->add_build_callback(&GodotSharpBuilds::editor_build_callback);
 
 	// Build tool settings
 	EditorSettings *ed_settings = EditorSettings::get_singleton();
 
-#ifdef WINDOWS_ENABLED
-	// TODO: Default to MSBUILD_MONO if its csc.exe issue is fixed in the installed mono version
-	EDITOR_DEF("mono/builds/build_tool", MSBUILD);
-#else
 	EDITOR_DEF("mono/builds/build_tool", MSBUILD_MONO);
-#endif
 
 	ed_settings->add_property_hint(PropertyInfo(Variant::INT, "mono/builds/build_tool", PROPERTY_HINT_ENUM,
+			PROP_NAME_MSBUILD_MONO
 #ifdef WINDOWS_ENABLED
-			"MSBuild (Mono),MSBuild (System)"
-#else
-			"MSBuild (Mono),xbuild (Deprecated)"
+			"," PROP_NAME_MSBUILD_VS
 #endif
-			));
+			"," PROP_NAME_XBUILD));
 }
 
 GodotSharpBuilds::~GodotSharpBuilds() {
@@ -476,6 +518,7 @@ void GodotSharpBuilds::BuildProcess::start(bool p_blocking) {
 
 	if (ex) {
 		exited = true;
+		GDMonoUtils::print_unhandled_exception(ex);
 		String message = "The build constructor threw an exception.\n" + GDMonoUtils::get_exception_name_and_message(ex);
 		build_tab->on_build_exec_failed(message);
 		ERR_EXPLAIN(message);
@@ -496,6 +539,7 @@ void GodotSharpBuilds::BuildProcess::start(bool p_blocking) {
 
 	if (ex) {
 		exited = true;
+		GDMonoUtils::print_unhandled_exception(ex);
 		String message = "The build method threw an exception.\n" + GDMonoUtils::get_exception_name_and_message(ex);
 		build_tab->on_build_exec_failed(message);
 		ERR_EXPLAIN(message);
@@ -518,11 +562,10 @@ void GodotSharpBuilds::BuildProcess::start(bool p_blocking) {
 	}
 }
 
-GodotSharpBuilds::BuildProcess::BuildProcess(const MonoBuildInfo &p_build_info, GodotSharpBuild_ExitCallback p_callback) {
-
-	build_info = p_build_info;
-	build_tab = NULL;
-	exit_callback = p_callback;
-	exited = true;
-	exit_code = -1;
+GodotSharpBuilds::BuildProcess::BuildProcess(const MonoBuildInfo &p_build_info, GodotSharpBuild_ExitCallback p_callback) :
+		build_info(p_build_info),
+		build_tab(NULL),
+		exit_callback(p_callback),
+		exited(true),
+		exit_code(-1) {
 }

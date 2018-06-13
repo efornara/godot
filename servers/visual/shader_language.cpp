@@ -124,6 +124,9 @@ const char *ShaderLanguage::token_names[TK_MAX] = {
 	"TYPE_ISAMPLER2D",
 	"TYPE_USAMPLER2D",
 	"TYPE_SAMPLERCUBE",
+	"INTERPOLATION_FLAT",
+	"INTERPOLATION_NO_PERSPECTIVE",
+	"INTERPOLATION_SMOOTH",
 	"PRECISION_LOW",
 	"PRECISION_MID",
 	"PRECISION_HIGH",
@@ -1608,7 +1611,7 @@ const ShaderLanguage::BuiltinFuncDef ShaderLanguage::builtin_func_defs[] = {
 	{ "mix", TYPE_VEC3, { TYPE_VEC3, TYPE_VEC3, TYPE_VEC3, TYPE_VOID } },
 	{ "mix", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_FLOAT, TYPE_VOID } },
 	{ "mix", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_BOOL, TYPE_VOID } },
-	{ "mix", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_BVEC3, TYPE_VOID } },
+	{ "mix", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_BVEC4, TYPE_VOID } },
 	{ "mix", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_VEC4, TYPE_VOID } },
 
 	{ "step", TYPE_FLOAT, { TYPE_FLOAT, TYPE_FLOAT, TYPE_VOID } },
@@ -2207,6 +2210,37 @@ ShaderLanguage::DataType ShaderLanguage::get_scalar_type(DataType p_type) {
 	};
 
 	return scalar_types[p_type];
+}
+
+int ShaderLanguage::get_cardinality(DataType p_type) {
+	static const int cardinality_table[] = {
+		0,
+		1,
+		2,
+		3,
+		4,
+		1,
+		2,
+		3,
+		4,
+		1,
+		2,
+		3,
+		4,
+		1,
+		2,
+		3,
+		4,
+		2,
+		3,
+		4,
+		1,
+		1,
+		1,
+		1,
+	};
+
+	return cardinality_table[p_type];
 }
 
 bool ShaderLanguage::_get_completable_identifier(BlockNode *p_block, CompletionType p_type, StringName &identifier) {
@@ -2968,7 +3002,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 				expr_pos++;
 				if (expr_pos == expression.size()) {
 					//can happen..
-					_set_error("Unexpected end of expression..");
+					_set_error("Unexpected end of expression...");
 					return NULL;
 				}
 			}
@@ -3005,7 +3039,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 		} else if (is_ternary) {
 
 			if (next_op < 1 || next_op >= (expression.size() - 1)) {
-				_set_error("Parser bug..");
+				_set_error("Parser bug...");
 				ERR_FAIL_V(NULL);
 			}
 
@@ -3041,7 +3075,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 		} else {
 
 			if (next_op < 1 || next_op >= (expression.size() - 1)) {
-				_set_error("Parser bug..");
+				_set_error("Parser bug...");
 				ERR_FAIL_V(NULL);
 			}
 
@@ -3050,7 +3084,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 
 			if (expression[next_op - 1].is_op) {
 
-				_set_error("Parser bug..");
+				_set_error("Parser bug...");
 				ERR_FAIL_V(NULL);
 			}
 
@@ -3066,7 +3100,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 				// can be followed by a unary op in a valid combination,
 				// due to how precedence works, unaries will always disappear first
 
-				_set_error("Parser bug..");
+				_set_error("Parser bug...");
 			}
 
 			op->arguments.push_back(expression[next_op - 1].node); //expression goes as left
@@ -3119,9 +3153,18 @@ ShaderLanguage::Node *ShaderLanguage::_reduce_expression(BlockNode *p_block, Sha
 
 				if (get_scalar_type(cn->datatype) == base) {
 
-					for (int j = 0; j < cn->values.size(); j++) {
-						values.push_back(cn->values[j]);
-					}
+					int cardinality = get_cardinality(op->arguments[i]->get_datatype());
+					if (cn->values.size() == cardinality) {
+
+						for (int j = 0; j < cn->values.size(); j++) {
+							values.push_back(cn->values[j]);
+						}
+					} else if (cn->values.size() == 1) {
+
+						for (int j = 0; j < cardinality; j++) {
+							values.push_back(cn->values[0]);
+						}
+					} // else: should be filtered by the parser as it's an invalid constructor
 				} else if (get_scalar_type(cn->datatype) == cn->datatype) {
 
 					ConstantNode::Value v;
@@ -3699,26 +3742,6 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 					//todo parse default value
 
 					tk = _get_token();
-					if (tk.type == TK_OP_ASSIGN) {
-
-						Node *expr = _parse_and_reduce_expression(NULL, Map<StringName, BuiltInInfo>());
-						if (!expr)
-							return ERR_PARSE_ERROR;
-						if (expr->type != Node::TYPE_CONSTANT) {
-							_set_error("Expected constant expression after '='");
-							return ERR_PARSE_ERROR;
-						}
-
-						ConstantNode *cn = static_cast<ConstantNode *>(expr);
-
-						uniform.default_value.resize(cn->values.size());
-
-						if (!convert_constant(cn, uniform.type, uniform.default_value.ptrw())) {
-							_set_error("Can't convert constant to " + get_datatype_name(uniform.type));
-							return ERR_PARSE_ERROR;
-						}
-						tk = _get_token();
-					}
 
 					if (tk.type == TK_COLON) {
 						//hint
@@ -3831,6 +3854,27 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 							return ERR_PARSE_ERROR;
 						}
 
+						tk = _get_token();
+					}
+
+					if (tk.type == TK_OP_ASSIGN) {
+
+						Node *expr = _parse_and_reduce_expression(NULL, Map<StringName, BuiltInInfo>());
+						if (!expr)
+							return ERR_PARSE_ERROR;
+						if (expr->type != Node::TYPE_CONSTANT) {
+							_set_error("Expected constant expression after '='");
+							return ERR_PARSE_ERROR;
+						}
+
+						ConstantNode *cn = static_cast<ConstantNode *>(expr);
+
+						uniform.default_value.resize(cn->values.size());
+
+						if (!convert_constant(cn, uniform.type, uniform.default_value.ptrw())) {
+							_set_error("Can't convert constant to " + get_datatype_name(uniform.type));
+							return ERR_PARSE_ERROR;
+						}
 						tk = _get_token();
 					}
 

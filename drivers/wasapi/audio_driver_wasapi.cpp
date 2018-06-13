@@ -35,6 +35,19 @@
 #include "os/os.h"
 #include "project_settings.h"
 
+#include <functiondiscoverykeys.h>
+
+#ifndef PKEY_Device_FriendlyName
+
+#undef DEFINE_PROPERTYKEY
+/* clang-format off */
+#define DEFINE_PROPERTYKEY(id, a, b, c, d, e, f, g, h, i, j, k, l) \
+	const PROPERTYKEY id = { { a, b, c, { d, e, f, g, h, i, j, k, } }, l };
+/* clang-format on */
+
+DEFINE_PROPERTYKEY(PKEY_Device_FriendlyName, 0xa45c254e, 0xdf1c, 0x4efd, 0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0, 14);
+#endif
+
 const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
 const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 const IID IID_IAudioClient = __uuidof(IAudioClient);
@@ -121,7 +134,61 @@ Error AudioDriverWASAPI::init_device(bool reinit) {
 	HRESULT hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, (void **)&enumerator);
 	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
 
-	hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+	if (device_name == "Default") {
+		hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+	} else {
+		IMMDeviceCollection *devices = NULL;
+
+		hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &devices);
+		ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+
+		LPWSTR strId = NULL;
+		bool found = false;
+
+		UINT count = 0;
+		hr = devices->GetCount(&count);
+		ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+
+		for (ULONG i = 0; i < count && !found; i++) {
+			IMMDevice *device = NULL;
+
+			hr = devices->Item(i, &device);
+			ERR_BREAK(hr != S_OK);
+
+			IPropertyStore *props = NULL;
+			hr = device->OpenPropertyStore(STGM_READ, &props);
+			ERR_BREAK(hr != S_OK);
+
+			PROPVARIANT propvar;
+			PropVariantInit(&propvar);
+
+			hr = props->GetValue(PKEY_Device_FriendlyName, &propvar);
+			ERR_BREAK(hr != S_OK);
+
+			if (device_name == String(propvar.pwszVal)) {
+				hr = device->GetId(&strId);
+				ERR_BREAK(hr != S_OK);
+
+				found = true;
+			}
+
+			PropVariantClear(&propvar);
+			props->Release();
+			device->Release();
+		}
+
+		if (found) {
+			hr = enumerator->GetDevice(strId, &device);
+		}
+
+		if (strId) {
+			CoTaskMemFree(strId);
+		}
+
+		if (device == NULL) {
+			hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+		}
+	}
 	if (reinit) {
 		// In case we're trying to re-initialize the device prevent throwing this error on the console,
 		// otherwise if there is currently no device available this will spam the console.
@@ -151,7 +218,6 @@ Error AudioDriverWASAPI::init_device(bool reinit) {
 
 	// Since we're using WASAPI Shared Mode we can't control any of these, we just tag along
 	wasapi_channels = pwfex->nChannels;
-	mix_rate = pwfex->nSamplesPerSec;
 	format_tag = pwfex->wFormatTag;
 	bits_per_sample = pwfex->wBitsPerSample;
 
@@ -187,7 +253,14 @@ Error AudioDriverWASAPI::init_device(bool reinit) {
 		}
 	}
 
-	hr = audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, 0, 0, pwfex, NULL);
+	DWORD streamflags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+	if (mix_rate != pwfex->nSamplesPerSec) {
+		streamflags |= AUDCLNT_STREAMFLAGS_RATEADJUST;
+		pwfex->nSamplesPerSec = mix_rate;
+		pwfex->nAvgBytesPerSec = pwfex->nSamplesPerSec * pwfex->nChannels * (pwfex->wBitsPerSample / 8);
+	}
+
+	hr = audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, streamflags, 0, 0, pwfex, NULL);
 	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
 
 	event = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -223,10 +296,11 @@ Error AudioDriverWASAPI::finish_device() {
 	if (audio_client) {
 		if (active) {
 			audio_client->Stop();
-			audio_client->Release();
-			audio_client = NULL;
 			active = false;
 		}
+
+		audio_client->Release();
+		audio_client = NULL;
 	}
 
 	if (render_client) {
@@ -243,6 +317,8 @@ Error AudioDriverWASAPI::finish_device() {
 }
 
 Error AudioDriverWASAPI::init() {
+
+	mix_rate = GLOBAL_DEF("audio/mix_rate", DEFAULT_MIX_RATE);
 
 	Error err = init_device();
 	if (err != OK) {
@@ -283,6 +359,64 @@ int AudioDriverWASAPI::get_mix_rate() const {
 AudioDriver::SpeakerMode AudioDriverWASAPI::get_speaker_mode() const {
 
 	return get_speaker_mode_by_total_channels(channels);
+}
+
+Array AudioDriverWASAPI::get_device_list() {
+
+	Array list;
+	IMMDeviceCollection *devices = NULL;
+	IMMDeviceEnumerator *enumerator = NULL;
+
+	list.push_back(String("Default"));
+
+	CoInitialize(NULL);
+
+	HRESULT hr = CoCreateInstance(CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, IID_IMMDeviceEnumerator, (void **)&enumerator);
+	ERR_FAIL_COND_V(hr != S_OK, Array());
+
+	hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &devices);
+	ERR_FAIL_COND_V(hr != S_OK, Array());
+
+	UINT count = 0;
+	hr = devices->GetCount(&count);
+	ERR_FAIL_COND_V(hr != S_OK, Array());
+
+	for (ULONG i = 0; i < count; i++) {
+		IMMDevice *device = NULL;
+
+		hr = devices->Item(i, &device);
+		ERR_BREAK(hr != S_OK);
+
+		IPropertyStore *props = NULL;
+		hr = device->OpenPropertyStore(STGM_READ, &props);
+		ERR_BREAK(hr != S_OK);
+
+		PROPVARIANT propvar;
+		PropVariantInit(&propvar);
+
+		hr = props->GetValue(PKEY_Device_FriendlyName, &propvar);
+		ERR_BREAK(hr != S_OK);
+
+		list.push_back(String(propvar.pwszVal));
+
+		PropVariantClear(&propvar);
+		props->Release();
+		device->Release();
+	}
+
+	devices->Release();
+	enumerator->Release();
+	return list;
+}
+
+String AudioDriverWASAPI::get_device() {
+
+	return device_name;
+}
+
+void AudioDriverWASAPI::set_device(String device) {
+
+	new_device = device;
 }
 
 void AudioDriverWASAPI::write_sample(AudioDriverWASAPI *ad, BYTE *buffer, int i, int32_t sample) {
@@ -400,13 +534,23 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 			}
 		}
 
-		if (default_device_changed) {
+		// If we're using the Default device and it changed finish it so we'll re-init the device
+		if (ad->device_name == "Default" && default_device_changed) {
 			Error err = ad->finish_device();
 			if (err != OK) {
 				ERR_PRINT("WASAPI: finish_device error");
 			}
 
 			default_device_changed = false;
+		}
+
+		// User selected a new device, finish the current one so we'll init the new device
+		if (ad->device_name != ad->new_device) {
+			ad->device_name = ad->new_device;
+			Error err = ad->finish_device();
+			if (err != OK) {
+				ERR_PRINT("WASAPI: finish_device error");
+			}
 		}
 
 		if (!ad->audio_client) {
@@ -483,6 +627,9 @@ AudioDriverWASAPI::AudioDriverWASAPI() {
 	thread_exited = false;
 	exit_thread = false;
 	active = false;
+
+	device_name = "Default";
+	new_device = "Default";
 }
 
 #endif

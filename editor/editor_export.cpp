@@ -274,8 +274,6 @@ void EditorExportPlatform::gen_debug_flags(Vector<String> &r_flags, int p_flags)
 }
 
 Error EditorExportPlatform::_save_pack_file(void *p_userdata, const String &p_path, const Vector<uint8_t> &p_data, int p_file, int p_total) {
-	if (p_path.ends_with(".so") || p_path.ends_with(".dylib") || p_path.ends_with(".dll"))
-		return OK;
 
 	PackData *pd = (PackData *)p_userdata;
 
@@ -913,6 +911,16 @@ Error EditorExportPlatform::save_zip(const Ref<EditorExportPreset> &p_preset, co
 	return OK;
 }
 
+Error EditorExportPlatform::export_pack(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags) {
+	ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
+	return save_pack(p_preset, p_path);
+}
+
+Error EditorExportPlatform::export_zip(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags) {
+	ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
+	return save_zip(p_preset, p_path);
+}
+
 void EditorExportPlatform::gen_export_flags(Vector<String> &r_flags, int p_flags) {
 
 	String host = EditorSettings::get_singleton()->get("network/debug/remote_host");
@@ -1264,6 +1272,7 @@ bool EditorExportPlatformPC::can_export(const Ref<EditorExportPreset> &p_preset,
 
 	String err;
 	bool valid = true;
+	bool use64 = p_preset->get("binary_format/64_bits");
 
 	if (use64 && (!exists_export_template(debug_file_64, &err) || !exists_export_template(release_file_64, &err))) {
 		valid = false;
@@ -1354,27 +1363,24 @@ Error EditorExportPlatformPC::export_project(const Ref<EditorExportPreset> &p_pr
 
 	DirAccess *da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 	Error err = da->copy(template_path, p_path, get_chmod_flags());
-	memdelete(da);
+	if (err == OK) {
+		String pck_path = p_path.get_basename() + ".pck";
 
-	if (err != OK) {
-		return err;
+		Vector<SharedObject> so_files;
+
+		err = save_pack(p_preset, pck_path, &so_files);
+
+		if (err == OK && !so_files.empty()) {
+			//if shared object files, copy them
+			da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+			for (int i = 0; i < so_files.size() && err == OK; i++) {
+				err = da->copy(so_files[i].path, p_path.get_base_dir().plus_file(so_files[i].path.get_file()));
+			}
+		}
 	}
 
-	String pck_path = p_path.get_basename() + ".pck";
-
-	Vector<SharedObject> so_files;
-
-	err = save_pack(p_preset, pck_path, &so_files);
-
-	if (err != OK || so_files.empty())
-		return err;
-	//if shared object files, copy them
-	da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
-	for (int i = 0; i < so_files.size(); i++) {
-		da->copy(so_files[i].path, p_path.get_base_dir().plus_file(so_files[i].path.get_file()));
-	}
 	memdelete(da);
-	return OK;
+	return err;
 }
 
 void EditorExportPlatformPC::set_extension(const String &p_extension, const String &p_feature_key) {

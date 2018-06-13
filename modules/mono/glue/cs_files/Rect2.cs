@@ -1,5 +1,10 @@
 using System;
 using System.Runtime.InteropServices;
+#if REAL_T_IS_DOUBLE
+using real_t = System.Double;
+#else
+using real_t = System.Single;
+#endif
 
 namespace Godot
 {
@@ -26,14 +31,14 @@ namespace Godot
             get { return position + size; }
         }
 
-        public float Area
+        public real_t Area
         {
             get { return GetArea(); }
         }
 
         public Rect2 Clip(Rect2 b)
         {
-            Rect2 newRect = b;
+            var newRect = b;
 
             if (!Intersects(newRect))
                 return new Rect2();
@@ -52,14 +57,14 @@ namespace Godot
 
         public bool Encloses(Rect2 b)
         {
-            return (b.position.x >= position.x) && (b.position.y >= position.y) &&
-               ((b.position.x + b.size.x) < (position.x + size.x)) &&
-               ((b.position.y + b.size.y) < (position.y + size.y));
+            return b.position.x >= position.x && b.position.y >= position.y &&
+               b.position.x + b.size.x < position.x + size.x &&
+               b.position.y + b.size.y < position.y + size.y;
         }
 
         public Rect2 Expand(Vector2 to)
         {
-            Rect2 expanded = this;
+            var expanded = this;
 
             Vector2 begin = expanded.position;
             Vector2 end = expanded.position + expanded.size;
@@ -80,14 +85,14 @@ namespace Godot
             return expanded;
         }
 
-        public float GetArea()
+        public real_t GetArea()
         {
             return size.x * size.y;
         }
 
-        public Rect2 Grow(float by)
+        public Rect2 Grow(real_t by)
         {
-            Rect2 g = this;
+            var g = this;
 
             g.position.x -= by;
             g.position.y -= by;
@@ -97,9 +102,9 @@ namespace Godot
             return g;
         }
 
-        public Rect2 GrowIndividual(float left, float top, float right, float bottom)
+        public Rect2 GrowIndividual(real_t left, real_t top, real_t right, real_t bottom)
         {
-            Rect2 g = this;
+            var g = this;
 
             g.position.x -= left;
             g.position.y -= top;
@@ -109,14 +114,14 @@ namespace Godot
             return g;
         }
 
-        public Rect2 GrowMargin(Margin margin, float by)
+        public Rect2 GrowMargin(Margin margin, real_t by)
         {
-            Rect2 g = this;
+            var g = this;
 
-            g.GrowIndividual((Margin.Left == margin) ? by : 0,
-                    (Margin.Top == margin) ? by : 0,
-                    (Margin.Right == margin) ? by : 0,
-                    (Margin.Bottom == margin) ? by : 0);
+            g.GrowIndividual(Margin.Left == margin ? by : 0,
+                    Margin.Top == margin ? by : 0,
+                    Margin.Right == margin ? by : 0,
+                    Margin.Bottom == margin ? by : 0);
 
             return g;
         }
@@ -133,9 +138,9 @@ namespace Godot
             if (point.y < position.y)
                 return false;
 
-            if (point.x >= (position.x + size.x))
+            if (point.x >= position.x + size.x)
                 return false;
-            if (point.y >= (position.y + size.y))
+            if (point.y >= position.y + size.y)
                 return false;
 
             return true;
@@ -143,13 +148,13 @@ namespace Godot
 
         public bool Intersects(Rect2 b)
         {
-            if (position.x > (b.position.x + b.size.x))
+            if (position.x > b.position.x + b.size.x)
                 return false;
-            if ((position.x + size.x) < b.position.x)
+            if (position.x + size.x < b.position.x)
                 return false;
-            if (position.y > (b.position.y + b.size.y))
+            if (position.y > b.position.y + b.size.y)
                 return false;
-            if ((position.y + size.y) < b.position.y)
+            if (position.y + size.y < b.position.y)
                 return false;
 
             return true;
@@ -169,17 +174,27 @@ namespace Godot
 
             return newRect;
         }
-
+        
+        // Constructors 
         public Rect2(Vector2 position, Vector2 size)
         {
             this.position = position;
             this.size = size;
         }
-
-        public Rect2(float x, float y, float width, float height)
+        public Rect2(Vector2 position, real_t width, real_t height)
         {
-            this.position = new Vector2(x, y);
-            this.size = new Vector2(width, height);
+            this.position = position;
+            size = new Vector2(width, height);
+        }
+        public Rect2(real_t x, real_t y, Vector2 size)
+        {
+            position = new Vector2(x, y);
+            this.size = size;
+        }
+        public Rect2(real_t x, real_t y, real_t width, real_t height)
+        {
+            position = new Vector2(x, y);
+            size = new Vector2(width, height);
         }
 
         public static bool operator ==(Rect2 left, Rect2 right)
@@ -216,8 +231,8 @@ namespace Godot
         {
             return String.Format("({0}, {1})", new object[]
             {
-                this.position.ToString(),
-                this.size.ToString()
+                position.ToString(),
+                size.ToString()
             });
         }
 
@@ -225,8 +240,8 @@ namespace Godot
         {
             return String.Format("({0}, {1})", new object[]
             {
-                this.position.ToString(format),
-                this.size.ToString(format)
+                position.ToString(format),
+                size.ToString(format)
             });
         }
     }

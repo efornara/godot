@@ -86,7 +86,7 @@ Variant *GDScriptFunction::_get_variant(int p_address, GDScriptInstance *p_insta
 				o = o->_owner;
 			}
 
-			ERR_EXPLAIN("GDScriptCompiler bug..");
+			ERR_EXPLAIN("GDScriptCompiler bug...");
 			ERR_FAIL_V(NULL);
 		} break;
 		case ADDR_TYPE_LOCAL_CONSTANT: {
@@ -1311,9 +1311,9 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 		GDScriptLanguage::get_singleton()->script_frame_time += time_taken - function_call_time;
 	}
 
-#endif
 	if (ScriptDebugger::get_singleton())
 		GDScriptLanguage::get_singleton()->exit_function();
+#endif
 
 	if (_stack_size) {
 		//free stack
@@ -1535,15 +1535,21 @@ Variant GDScriptFunctionState::_signal_callback(const Variant **p_args, int p_ar
 	// then the function did yield again after resuming.
 	if (ret.is_ref()) {
 		GDScriptFunctionState *gdfs = Object::cast_to<GDScriptFunctionState>(ret);
-		if (gdfs && gdfs->function == function)
+		if (gdfs && gdfs->function == function) {
 			completed = false;
+			gdfs->previous_state = Ref<GDScriptFunctionState>(this);
+		}
 	}
 
 	function = NULL; //cleaned up;
 	state.result = Variant();
 
 	if (completed) {
-		emit_signal("completed", ret);
+		GDScriptFunctionState *state = this;
+		while (state != NULL) {
+			state->emit_signal("completed", ret);
+			state = *(state->previous_state);
+		}
 	}
 
 	return ret;
@@ -1591,15 +1597,21 @@ Variant GDScriptFunctionState::resume(const Variant &p_arg) {
 	// then the function did yield again after resuming.
 	if (ret.is_ref()) {
 		GDScriptFunctionState *gdfs = Object::cast_to<GDScriptFunctionState>(ret);
-		if (gdfs && gdfs->function == function)
+		if (gdfs && gdfs->function == function) {
 			completed = false;
+			gdfs->previous_state = Ref<GDScriptFunctionState>(this);
+		}
 	}
 
 	function = NULL; //cleaned up;
 	state.result = Variant();
 
 	if (completed) {
-		emit_signal("completed", ret);
+		GDScriptFunctionState *state = this;
+		while (state != NULL) {
+			state->emit_signal("completed", ret);
+			state = *(state->previous_state);
+		}
 	}
 
 	return ret;

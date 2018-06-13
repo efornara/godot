@@ -349,6 +349,11 @@ Error OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 		XFree(xsh);
 	}
 
+	if (current_videomode.always_on_top) {
+		current_videomode.always_on_top = false;
+		set_window_always_on_top(true);
+	}
+
 	AudioDriverManager::initialize(p_audio_driver);
 
 	ERR_FAIL_COND_V(!visual_server, ERR_UNAVAILABLE);
@@ -796,6 +801,22 @@ void OS_X11::set_wm_fullscreen(bool p_enabled) {
 	}
 }
 
+void OS_X11::set_wm_above(bool p_enabled) {
+	Atom wm_state = XInternAtom(x11_display, "_NET_WM_STATE", False);
+	Atom wm_above = XInternAtom(x11_display, "_NET_WM_STATE_ABOVE", False);
+
+	XClientMessageEvent xev;
+	memset(&xev, 0, sizeof(xev));
+	xev.type = ClientMessage;
+	xev.window = x11_window;
+	xev.message_type = wm_state;
+	xev.format = 32;
+	xev.data.l[0] = p_enabled ? _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE;
+	xev.data.l[1] = wm_above;
+	xev.data.l[3] = 1;
+	XSendEvent(x11_display, DefaultRootWindow(x11_display), False, SubstructureRedirectMask | SubstructureNotifyMask, (XEvent *)&xev);
+}
+
 int OS_X11::get_screen_count() const {
 	// Using Xinerama Extension
 	int event_base, error_base;
@@ -990,7 +1011,19 @@ void OS_X11::set_window_size(const Size2 p_size) {
 }
 
 void OS_X11::set_window_fullscreen(bool p_enabled) {
+	if (current_videomode.fullscreen == p_enabled)
+		return;
+
+	if (p_enabled && current_videomode.always_on_top) {
+		// Fullscreen + Always-on-top requires a maximized window on some window managers (Metacity)
+		set_window_maximized(true);
+	}
 	set_wm_fullscreen(p_enabled);
+	if (!p_enabled && !current_videomode.always_on_top) {
+		// Restore
+		set_window_maximized(false);
+	}
+
 	current_videomode.fullscreen = p_enabled;
 }
 
@@ -1198,6 +1231,27 @@ bool OS_X11::is_window_maximized() const {
 
 	XFree(data);
 	return retval;
+}
+
+void OS_X11::set_window_always_on_top(bool p_enabled) {
+	if (is_window_always_on_top() == p_enabled)
+		return;
+
+	if (p_enabled && current_videomode.fullscreen) {
+		// Fullscreen + Always-on-top requires a maximized window on some window managers (Metacity)
+		set_window_maximized(true);
+	}
+	set_wm_above(p_enabled);
+	if (!p_enabled && !current_videomode.fullscreen) {
+		// Restore
+		set_window_maximized(false);
+	}
+
+	current_videomode.always_on_top = p_enabled;
+}
+
+bool OS_X11::is_window_always_on_top() const {
+	return current_videomode.always_on_top;
 }
 
 void OS_X11::set_borderless_window(bool p_borderless) {
@@ -1641,6 +1695,11 @@ void OS_X11::process_xevents() {
 							if (touch.state.has(index)) // Defensive
 								break;
 							touch.state[index] = pos;
+							if (touch.state.size() == 1) {
+								// X11 may send a motion event when a touch gesture begins, that would result
+								// in a spurious mouse motion event being sent to Godot; remember it to be able to filter it out
+								touch.mouse_pos_to_filter = pos;
+							}
 							input->parse_input_event(st);
 						} else {
 							if (!touch.state.has(index)) // Defensive
@@ -1846,6 +1905,18 @@ void OS_X11::process_xevents() {
 				// A little hack is in order
 				// to be able to send relative motion events.
 				Point2i pos(event.xmotion.x, event.xmotion.y);
+
+				// Avoidance of spurious mouse motion (see handling of touch)
+				bool filter = false;
+				// Adding some tolerance to match better Point2i to Vector2
+				if (touch.state.size() && Vector2(pos).distance_squared_to(touch.mouse_pos_to_filter) < 2) {
+					filter = true;
+				}
+				// Invalidate to avoid filtering a possible legitimate similar event coming later
+				touch.mouse_pos_to_filter = Vector2(1e10, 1e10);
+				if (filter) {
+					break;
+				}
 
 				if (mouse_mode == MOUSE_MODE_CAPTURED) {
 

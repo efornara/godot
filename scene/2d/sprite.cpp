@@ -63,8 +63,8 @@ void Sprite::_get_rects(Rect2 &r_src_rect, Rect2 &r_dst_rect, bool &r_filter_cli
 		s = s / Size2(hframes, vframes);
 
 		r_src_rect.size = s;
-		r_src_rect.position.x += float(frame % hframes) * s.x;
-		r_src_rect.position.y += float(frame / hframes) * s.y;
+		r_src_rect.position.x = float(frame % hframes) * s.x;
+		r_src_rect.position.y = float(frame / hframes) * s.y;
 	}
 
 	Point2 ofs = offset;
@@ -111,7 +111,15 @@ void Sprite::set_texture(const Ref<Texture> &p_texture) {
 
 	if (p_texture == texture)
 		return;
+
+	if (texture.is_valid())
+		texture->remove_change_receptor(this);
+
 	texture = p_texture;
+
+	if (texture.is_valid())
+		texture->add_change_receptor(this);
+
 	update();
 	emit_signal("texture_changed");
 	item_rect_changed();
@@ -277,9 +285,53 @@ bool Sprite::_edit_is_selected_on_click(const Point2 &p_point, double p_toleranc
 
 	Vector2 q = ((p_point - dst_rect.position) / dst_rect.size) * src_rect.size + src_rect.position;
 
-	Ref<Image> image = texture->get_data();
-	ERR_FAIL_COND_V(image.is_null(), false);
+	Ref<Image> image;
+	Ref<AtlasTexture> atlasTexture = texture;
+	if (atlasTexture.is_null()) {
+		image = texture->get_data();
+	} else {
+		ERR_FAIL_COND_V(atlasTexture->get_atlas().is_null(), false);
 
+		image = atlasTexture->get_atlas()->get_data();
+
+		Rect2 region = atlasTexture->get_region();
+		Rect2 margin = atlasTexture->get_margin();
+
+		q -= margin.position;
+
+		if ((q.x > region.size.width) || (q.y > region.size.height)) {
+			return false;
+		}
+
+		q += region.position;
+	}
+
+	ERR_FAIL_COND_V(image.is_null(), false);
+	if (image->is_compressed()) {
+		return dst_rect.has_point(p_point);
+	}
+
+	bool is_repeat = texture->get_flags() & Texture::FLAG_REPEAT;
+	bool is_mirrored_repeat = texture->get_flags() & Texture::FLAG_MIRRORED_REPEAT;
+	if (is_repeat) {
+		int mirror_x = 0;
+		int mirror_y = 0;
+		if (is_mirrored_repeat) {
+			mirror_x = (int)(q.x / texture->get_size().width);
+			mirror_y = (int)(q.y / texture->get_size().height);
+		}
+		q.x = Math::fmod(q.x, texture->get_size().width);
+		q.y = Math::fmod(q.y, texture->get_size().height);
+		if (mirror_x % 2 == 1) {
+			q.x = texture->get_size().width - q.x - 1;
+		}
+		if (mirror_y % 2 == 1) {
+			q.y = texture->get_size().height - q.y - 1;
+		}
+	} else {
+		q.x = MIN(q.x, texture->get_size().width - 1);
+		q.y = MIN(q.y, texture->get_size().height - 1);
+	}
 	image->lock();
 	const Color c = image->get_pixel((int)q.x, (int)q.y);
 	image->unlock();
@@ -323,6 +375,15 @@ void Sprite::_validate_property(PropertyInfo &property) const {
 		property.hint = PROPERTY_HINT_SPRITE_FRAME;
 
 		property.hint_string = "0," + itos(vframes * hframes - 1) + ",1";
+	}
+}
+
+void Sprite::_changed_callback(Object *p_changed, const char *p_prop) {
+
+	// Changes to the texture need to trigger an update to make
+	// the editor redraw the sprite with the updated texture.
+	if (texture.is_valid() && texture.ptr() == p_changed) {
+		update();
 	}
 }
 
@@ -397,4 +458,9 @@ Sprite::Sprite() {
 
 	vframes = 1;
 	hframes = 1;
+}
+
+Sprite::~Sprite() {
+	if (texture.is_valid())
+		texture->remove_change_receptor(this);
 }

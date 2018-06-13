@@ -301,8 +301,7 @@ class EditorExportAndroid : public EditorExportPlatform {
 							args.push_back("-s");
 							args.push_back(d.id);
 							args.push_back("shell");
-							args.push_back("cat");
-							args.push_back("/system/build.prop");
+							args.push_back("getprop");
 							int ec;
 							String dp;
 
@@ -315,7 +314,14 @@ class EditorExportAndroid : public EditorExportPlatform {
 							d.api_level = 0;
 							for (int j = 0; j < props.size(); j++) {
 
+								// got information by `shell cat /system/build.prop` before and its format is "property=value"
+								// it's now changed to use `shell getporp` because of permission issue with Android 8.0 and above
+								// its format is "[property]: [value]" so changed it as like build.prop
 								String p = props[j];
+								p = p.replace("]: ", "=");
+								p = p.replace("[", "");
+								p = p.replace("]", "");
+
 								if (p.begins_with("ro.product.model=")) {
 									device = p.get_slice("=", 1).strip_edges();
 								} else if (p.begins_with("ro.product.brand=")) {
@@ -1026,7 +1032,7 @@ public:
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "custom_package/debug", PROPERTY_HINT_GLOBAL_FILE, "apk"), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "custom_package/release", PROPERTY_HINT_GLOBAL_FILE, "apk"), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "command_line/extra_args"), ""));
-		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "version/code", PROPERTY_HINT_RANGE, "1,65535,1"), 1));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "version/code", PROPERTY_HINT_RANGE, "1,2147483647,1"), 1));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "version/name"), "1.0"));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "package/unique_name"), "org.godotengine.$genname"));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "package/name"), ""));
@@ -1156,7 +1162,7 @@ public:
 		String package_name = p_preset->get("package/unique_name");
 
 		if (remove_prev) {
-			ep.step("Uninstalling..", 1);
+			ep.step("Uninstalling...", 1);
 
 			print_line("Uninstalling previous version: " + devices[p_device].name);
 
@@ -1235,7 +1241,7 @@ public:
 			}
 		}
 
-		ep.step("Running on Device..", 3);
+		ep.step("Running on Device...", 3);
 		args.clear();
 		args.push_back("-s");
 		args.push_back(devices[p_device].id);
@@ -1325,6 +1331,8 @@ public:
 	}
 
 	virtual Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) {
+
+		ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
 
 		String src_apk;
 
@@ -1493,7 +1501,7 @@ public:
 			ret = unzGoToNextFile(pkg);
 		}
 
-		ep.step("Adding Files..", 1);
+		ep.step("Adding Files...", 1);
 		Error err = OK;
 		Vector<String> cl = cmdline.strip_edges().split(" ");
 		for (int i = 0; i < cl.size(); i++) {
@@ -1627,14 +1635,14 @@ public:
 				password = EditorSettings::get_singleton()->get("export/android/debug_keystore_pass");
 				user = EditorSettings::get_singleton()->get("export/android/debug_keystore_user");
 
-				ep.step("Signing Debug APK..", 103);
+				ep.step("Signing Debug APK...", 103);
 
 			} else {
 				keystore = release_keystore;
 				password = release_password;
 				user = release_username;
 
-				ep.step("Signing Release APK..", 103);
+				ep.step("Signing Release APK...", 103);
 			}
 
 			if (!FileAccess::exists(keystore)) {
@@ -1644,9 +1652,9 @@ public:
 
 			List<String> args;
 			args.push_back("-digestalg");
-			args.push_back("SHA1");
+			args.push_back("SHA-256");
 			args.push_back("-sigalg");
-			args.push_back("MD5withRSA");
+			args.push_back("SHA256withRSA");
 			String tsa_url = EditorSettings::get_singleton()->get("export/android/timestamping_authority_url");
 			if (tsa_url != "") {
 				args.push_back("-tsa");
@@ -1666,7 +1674,7 @@ public:
 				return ERR_CANT_CREATE;
 			}
 
-			ep.step("Verifying APK..", 104);
+			ep.step("Verifying APK...", 104);
 
 			args.clear();
 			args.push_back("-verify");
@@ -1686,7 +1694,7 @@ public:
 
 		static const int ZIP_ALIGNMENT = 4;
 
-		ep.step("Aligning APK..", 105);
+		ep.step("Aligning APK...", 105);
 
 		unzFile tmp_unaligned = unzOpen2(unaligned_path.utf8().get_data(), &io);
 		if (!tmp_unaligned) {

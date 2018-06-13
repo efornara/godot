@@ -298,7 +298,7 @@ Error HTTPClient::poll() {
 				case StreamPeerTCP::STATUS_CONNECTED: {
 					if (ssl) {
 						Ref<StreamPeerSSL> ssl = StreamPeerSSL::create();
-						Error err = ssl->connect_to_stream(tcp_connection, ssl_verify_host, ssl_verify_host ? conn_host : String());
+						Error err = ssl->connect_to_stream(tcp_connection, ssl_verify_host, conn_host);
 						if (err != OK) {
 							close();
 							status = STATUS_SSL_HANDSHAKE_ERROR;
@@ -618,7 +618,27 @@ String HTTPClient::query_string_from_dict(const Dictionary &p_dict) {
 	String query = "";
 	Array keys = p_dict.keys();
 	for (int i = 0; i < keys.size(); ++i) {
-		query += "&" + String(keys[i]).http_escape() + "=" + String(p_dict[keys[i]]).http_escape();
+		String encoded_key = String(keys[i]).http_escape();
+		Variant value = p_dict[keys[i]];
+		switch (value.get_type()) {
+			case Variant::ARRAY: {
+				// Repeat the key with every values
+				Array values = value;
+				for (int j = 0; j < values.size(); ++j) {
+					query += "&" + encoded_key + "=" + String(values[j]).http_escape();
+				}
+				break;
+			}
+			case Variant::NIL: {
+				// Add the key with no value
+				query += "&" + encoded_key;
+				break;
+			}
+			default: {
+				// Add the key-value pair
+				query += "&" + encoded_key + "=" + String(value).http_escape();
+			}
+		}
 	}
 	query.erase(0, 1);
 	return query;

@@ -149,9 +149,43 @@ static Vector2 get_mouse_pos(NSEvent *event) {
 @end
 
 @interface GodotApplicationDelegate : NSObject
+- (void)forceUnbundledWindowActivationHackStep1;
+- (void)forceUnbundledWindowActivationHackStep2;
+- (void)forceUnbundledWindowActivationHackStep3;
 @end
 
 @implementation GodotApplicationDelegate
+
+- (void)forceUnbundledWindowActivationHackStep1 {
+	// Step1: Switch focus to macOS Dock.
+	// Required to perform step 2, TransformProcessType will fail if app is already the in focus.
+	for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.dock"]) {
+		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+		break;
+	}
+	[self performSelector:@selector(forceUnbundledWindowActivationHackStep2) withObject:nil afterDelay:0.02];
+}
+
+- (void)forceUnbundledWindowActivationHackStep2 {
+	// Step 2: Register app as foreground process.
+	ProcessSerialNumber psn = { 0, kCurrentProcess };
+	(void)TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+
+	[self performSelector:@selector(forceUnbundledWindowActivationHackStep3) withObject:nil afterDelay:0.02];
+}
+
+- (void)forceUnbundledWindowActivationHackStep3 {
+	// Step 3: Switch focus back to app window.
+	[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+}
+
+- (void)applicationDidFinishLaunching:(NSNotification *)notice {
+	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+	if (nsappname == nil) {
+		// If executable is not a bundled, macOS WindowServer won't register and activate app window correctly (menu and title bar are grayed out and input ignored).
+		[self performSelector:@selector(forceUnbundledWindowActivationHackStep1) withObject:nil afterDelay:0.02];
+	}
+}
 
 - (BOOL)application:(NSApplication *)sender openFile:(NSString *)filename {
 	// Note: called before main loop init!
@@ -228,6 +262,7 @@ static Vector2 get_mouse_pos(NSEvent *event) {
 	NSWindow *window = (NSWindow *)[notification object];
 	CGFloat newBackingScaleFactor = [window backingScaleFactor];
 	CGFloat oldBackingScaleFactor = [[[notification userInfo] objectForKey:@"NSBackingPropertyOldScaleFactorKey"] doubleValue];
+	[OS_OSX::singleton->window_view setWantsBestResolutionOpenGLSurface:YES];
 
 	if (newBackingScaleFactor != oldBackingScaleFactor) {
 		//Set new display scale and window size
@@ -504,7 +539,9 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 }
 
 - (void)cursorUpdate:(NSEvent *)event {
-	//setModeCursor(window, window->cursorMode);
+	OS::CursorShape p_shape = OS_OSX::singleton->cursor_shape;
+	OS_OSX::singleton->cursor_shape = OS::CURSOR_MAX;
+	OS_OSX::singleton->set_cursor_shape(p_shape);
 }
 
 static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
@@ -619,11 +656,12 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 		return;
 	if (OS_OSX::singleton->main_loop && OS_OSX::singleton->mouse_mode != OS::MOUSE_MODE_CAPTURED)
 		OS_OSX::singleton->main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
-	if (OS_OSX::singleton->input) {
+	if (OS_OSX::singleton->input)
 		OS_OSX::singleton->input->set_mouse_in_window(true);
-		OS_OSX::singleton->cursor_shape = OS::CURSOR_MAX;
-		OS_OSX::singleton->set_cursor_shape(OS::CURSOR_ARROW);
-	}
+
+	OS::CursorShape p_shape = OS_OSX::singleton->cursor_shape;
+	OS_OSX::singleton->cursor_shape = OS::CURSOR_MAX;
+	OS_OSX::singleton->set_cursor_shape(p_shape);
 }
 
 - (void)magnifyWithEvent:(NSEvent *)event {
@@ -1942,6 +1980,20 @@ void OS_OSX::move_window_to_foreground() {
 	[window_object orderFrontRegardless];
 }
 
+void OS_OSX::set_window_always_on_top(bool p_enabled) {
+	if (is_window_always_on_top() == p_enabled)
+		return;
+
+	if (p_enabled)
+		[window_object setLevel:NSFloatingWindowLevel];
+	else
+		[window_object setLevel:NSNormalWindowLevel];
+}
+
+bool OS_OSX::is_window_always_on_top() const {
+	return [window_object level] == NSFloatingWindowLevel;
+}
+
 void OS_OSX::request_attention() {
 
 	[NSApp requestUserAttention:NSCriticalRequest];
@@ -2287,7 +2339,7 @@ OS_OSX::OS_OSX() {
 	NSMenuItem *menu_item;
 	NSString *title;
 
-	NSString *nsappname = [[[NSBundle mainBundle] performSelector:@selector(localizedInfoDictionary)] objectForKey:@"CFBundleName"];
+	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
 	if (nsappname == nil)
 		nsappname = [[NSProcessInfo processInfo] processName];
 

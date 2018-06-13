@@ -156,6 +156,7 @@ public:
 	virtual void set_window_position(const Point2 &p_position);
 	virtual Size2 get_window_size() const;
 	virtual Size2 get_real_window_size() const;
+	virtual Rect2 get_window_safe_area() const;
 	virtual void set_window_size(const Size2 &p_size);
 	virtual void set_window_fullscreen(bool p_enabled);
 	virtual bool is_window_fullscreen() const;
@@ -165,6 +166,8 @@ public:
 	virtual bool is_window_minimized() const;
 	virtual void set_window_maximized(bool p_enabled);
 	virtual bool is_window_maximized() const;
+	virtual void set_window_always_on_top(bool p_enabled);
+	virtual bool is_window_always_on_top() const;
 	virtual void request_attention();
 	virtual void center_window();
 
@@ -406,6 +409,9 @@ public:
 	Error open(const String &p_path, int p_mode_flags); ///< open a file
 	void close(); ///< close a file
 	bool is_open() const; ///< true when file is open
+
+	String get_path() const; /// returns the path for the current open file
+	String get_path_absolute() const; /// returns the absolute path for the current open file
 
 	void seek(int64_t p_position); ///< seek to a given position
 	void seek_end(int64_t p_position = 0); ///< seek from the end of file

@@ -68,7 +68,9 @@ AreaBullet::AreaBullet() :
 }
 
 AreaBullet::~AreaBullet() {
-	remove_all_overlapping_instantly();
+	// signal are handled by godot, so just clear without notify
+	for (int i = overlappingObjects.size() - 1; 0 <= i; --i)
+		overlappingObjects[i].object->on_exit_area(this);
 }
 
 void AreaBullet::dispatch_callbacks() {
@@ -121,23 +123,21 @@ void AreaBullet::scratch() {
 	isScratched = true;
 }
 
-void AreaBullet::remove_all_overlapping_instantly() {
-	CollisionObjectBullet *supportObject;
+void AreaBullet::clear_overlaps(bool p_notify) {
 	for (int i = overlappingObjects.size() - 1; 0 <= i; --i) {
-		supportObject = overlappingObjects[i].object;
-		call_event(supportObject, PhysicsServer::AREA_BODY_REMOVED);
-		supportObject->on_exit_area(this);
+		if (p_notify)
+			call_event(overlappingObjects[i].object, PhysicsServer::AREA_BODY_REMOVED);
+		overlappingObjects[i].object->on_exit_area(this);
 	}
 	overlappingObjects.clear();
 }
 
-void AreaBullet::remove_overlapping_instantly(CollisionObjectBullet *p_object) {
-	CollisionObjectBullet *supportObject;
+void AreaBullet::remove_overlap(CollisionObjectBullet *p_object, bool p_notify) {
 	for (int i = overlappingObjects.size() - 1; 0 <= i; --i) {
-		supportObject = overlappingObjects[i].object;
-		if (supportObject == p_object) {
-			call_event(supportObject, PhysicsServer::AREA_BODY_REMOVED);
-			supportObject->on_exit_area(this);
+		if (overlappingObjects[i].object == p_object) {
+			if (p_notify)
+				call_event(overlappingObjects[i].object, PhysicsServer::AREA_BODY_REMOVED);
+			overlappingObjects[i].object->on_exit_area(this);
 			overlappingObjects.remove(i);
 			break;
 		}

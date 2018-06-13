@@ -211,6 +211,11 @@ void BaseButton::_gui_input(Ref<InputEvent> p_event) {
 				if (!toggle_mode) { //mouse press attempt
 
 					pressed();
+					if (get_script_instance()) {
+						Variant::CallError ce;
+						get_script_instance()->call(SceneStringNames::get_singleton()->_pressed, NULL, 0, ce);
+					}
+
 					emit_signal("pressed");
 				} else {
 
@@ -247,7 +252,7 @@ void BaseButton::_notification(int p_what) {
 		status.hovering = false;
 		update();
 	}
-	if (p_what == NOTIFICATION_DRAG_BEGIN) {
+	if (p_what == NOTIFICATION_DRAG_BEGIN || p_what == NOTIFICATION_SCROLL_BEGIN) {
 
 		if (status.press_attempt) {
 			status.press_attempt = false;

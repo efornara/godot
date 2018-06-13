@@ -312,7 +312,7 @@ void ScriptEditor::_goto_script_line2(int p_line) {
 void ScriptEditor::_goto_script_line(REF p_script, int p_line) {
 
 	Ref<Script> script = Object::cast_to<Script>(*p_script);
-	if (!script.is_null() && script->get_path().is_resource_file()) {
+	if (!script.is_null() && script->has_source_code()) {
 		if (edit(p_script, p_line, 0)) {
 			editor->push_item(p_script.ptr());
 
@@ -882,7 +882,7 @@ void ScriptEditor::_menu_option(int p_option) {
 			file_dialog->add_filter("*.tet");
 			file_dialog->set_current_path(EditorSettings::get_singleton()->get_text_editor_themes_dir().plus_file(EditorSettings::get_singleton()->get("text_editor/theme/color_theme")));
 			file_dialog->popup_centered_ratio();
-			file_dialog->set_title(TTR("Save Theme As.."));
+			file_dialog->set_title(TTR("Save Theme As..."));
 		} break;
 		case SEARCH_HELP: {
 
@@ -2570,8 +2570,8 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	waiting_update_names = false;
 	pending_auto_reload = false;
 	auto_reload_running_scripts = false;
-	members_overview_enabled = true;
-	help_overview_enabled = true;
+	members_overview_enabled = EditorSettings::get_singleton()->get("text_editor/open_scripts/show_members_overview");
+	help_overview_enabled = EditorSettings::get_singleton()->get("text_editor/help/show_help_index");
 	editor = p_editor;
 
 	VBoxContainer *main_container = memnew(VBoxContainer);
@@ -2642,7 +2642,7 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 
 	file_menu->get_popup()->add_separator();
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/save", TTR("Save"), KEY_MASK_ALT | KEY_MASK_CMD | KEY_S), FILE_SAVE);
-	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/save_as", TTR("Save As..")), FILE_SAVE_AS);
+	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/save_as", TTR("Save As...")), FILE_SAVE_AS);
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/save_all", TTR("Save All"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_MASK_ALT | KEY_S), FILE_SAVE_ALL);
 	file_menu->get_popup()->add_separator();
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/reload_script_soft", TTR("Soft Reload Script"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_R), FILE_TOOL_RELOAD_SOFT);
@@ -2671,7 +2671,7 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	script_search_menu = memnew(MenuButton);
 	menu_hb->add_child(script_search_menu);
 	script_search_menu->set_text(TTR("Search"));
-	script_search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find", TTR("Find.."), KEY_MASK_CMD | KEY_F), HELP_SEARCH_FIND);
+	script_search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find", TTR("Find..."), KEY_MASK_CMD | KEY_F), HELP_SEARCH_FIND);
 	script_search_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/find_next", TTR("Find Next"), KEY_F3), HELP_SEARCH_FIND_NEXT);
 	script_search_menu->get_popup()->connect("id_pressed", this, "_menu_option");
 	script_search_menu->hide();
@@ -2809,9 +2809,9 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	//debugger_gui->hide();
 
 	edit_pass = 0;
-	trim_trailing_whitespace_on_save = false;
-	convert_indent_on_save = false;
-	use_space_indentation = false;
+	trim_trailing_whitespace_on_save = EditorSettings::get_singleton()->get("text_editor/files/trim_trailing_whitespace_on_save");
+	convert_indent_on_save = EditorSettings::get_singleton()->get("text_editor/indent/convert_indent_on_save");
+	use_space_indentation = EditorSettings::get_singleton()->get("text_editor/indent/type");
 
 	ScriptServer::edit_request_func = _open_script_request;
 

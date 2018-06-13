@@ -2085,9 +2085,9 @@ void RasterizerSceneGLES3::_render_list(RenderList::Element **p_elements, int p_
 						case RasterizerStorageGLES3::Shader::Spatial::BLEND_MODE_MUL: {
 							glBlendEquation(GL_FUNC_ADD);
 							if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-								glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+								glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
 							} else {
-								glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+								glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
 							}
 
 						} break;
@@ -5117,4 +5117,24 @@ void RasterizerSceneGLES3::finalize() {
 }
 
 RasterizerSceneGLES3::RasterizerSceneGLES3() {
+}
+
+RasterizerSceneGLES3::~RasterizerSceneGLES3() {
+
+	memdelete(default_material.get_data());
+	memdelete(default_material_twosided.get_data());
+	memdelete(default_shader.get_data());
+	memdelete(default_shader_twosided.get_data());
+
+	memdelete(default_worldcoord_material.get_data());
+	memdelete(default_worldcoord_material_twosided.get_data());
+	memdelete(default_worldcoord_shader.get_data());
+	memdelete(default_worldcoord_shader_twosided.get_data());
+
+	memdelete(default_overdraw_material.get_data());
+	memdelete(default_overdraw_shader.get_data());
+
+	memfree(state.spot_array_tmp);
+	memfree(state.omni_array_tmp);
+	memfree(state.reflection_array_tmp);
 }

@@ -33,9 +33,10 @@
 #include <mono/metadata/mono-debug.h>
 #include <mono/metadata/tokentype.h>
 
-#include "list.h"
-#include "os/file_access.h"
-#include "os/os.h"
+#include "core/list.h"
+#include "core/os/file_access.h"
+#include "core/os/os.h"
+#include "core/project_settings.h"
 
 #include "../godotsharp_dirs.h"
 #include "gd_mono_class.h"
@@ -43,7 +44,23 @@
 bool GDMonoAssembly::no_search = false;
 Vector<String> GDMonoAssembly::search_dirs;
 
-MonoAssembly *GDMonoAssembly::_search_hook(MonoAssemblyName *aname, void *user_data) {
+MonoAssembly *GDMonoAssembly::assembly_search_hook(MonoAssemblyName *aname, void *user_data) {
+	return GDMonoAssembly::_search_hook(aname, user_data, false);
+}
+
+MonoAssembly *GDMonoAssembly::assembly_refonly_search_hook(MonoAssemblyName *aname, void *user_data) {
+	return GDMonoAssembly::_search_hook(aname, user_data, true);
+}
+
+MonoAssembly *GDMonoAssembly::assembly_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data) {
+	return GDMonoAssembly::_preload_hook(aname, assemblies_path, user_data, false);
+}
+
+MonoAssembly *GDMonoAssembly::assembly_refonly_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data) {
+	return GDMonoAssembly::_preload_hook(aname, assemblies_path, user_data, true);
+}
+
+MonoAssembly *GDMonoAssembly::_search_hook(MonoAssemblyName *aname, void *user_data, bool refonly) {
 
 	(void)user_data; // UNUSED
 
@@ -60,7 +77,7 @@ MonoAssembly *GDMonoAssembly::_search_hook(MonoAssemblyName *aname, void *user_d
 	no_search = true; // Avoid the recursion madness
 
 	String path;
-	MonoAssembly *res = NULL;
+	GDMonoAssembly *res = NULL;
 
 	for (int i = 0; i < search_dirs.size(); i++) {
 		const String &search_dir = search_dirs[i];
@@ -68,37 +85,38 @@ MonoAssembly *GDMonoAssembly::_search_hook(MonoAssemblyName *aname, void *user_d
 		if (has_extension) {
 			path = search_dir.plus_file(name);
 			if (FileAccess::exists(path)) {
-				res = _load_assembly_from(name.get_basename(), path);
-				break;
+				res = _load_assembly_from(name.get_basename(), path, refonly);
+				if (res != NULL)
+					break;
 			}
 		} else {
 			path = search_dir.plus_file(name + ".dll");
 			if (FileAccess::exists(path)) {
-				res = _load_assembly_from(name, path);
-				break;
+				res = _load_assembly_from(name, path, refonly);
+				if (res != NULL)
+					break;
 			}
 
 			path = search_dir.plus_file(name + ".exe");
 			if (FileAccess::exists(path)) {
-				res = _load_assembly_from(name, path);
-				break;
+				res = _load_assembly_from(name, path, refonly);
+				if (res != NULL)
+					break;
 			}
 		}
 	}
 
 	no_search = false;
 
-	return res;
+	return res ? res->get_assembly() : NULL;
 }
 
-MonoAssembly *GDMonoAssembly::_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data) {
+MonoAssembly *GDMonoAssembly::_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data, bool refonly) {
 
 	(void)user_data; // UNUSED
 
 	if (search_dirs.empty()) {
-#ifdef TOOLS_DOMAIN
 		search_dirs.push_back(GodotSharpDirs::get_res_temp_assemblies_dir());
-#endif
 		search_dirs.push_back(GodotSharpDirs::get_res_assemblies_dir());
 		search_dirs.push_back(OS::get_singleton()->get_resource_dir());
 		search_dirs.push_back(OS::get_singleton()->get_executable_path().get_base_dir());
@@ -109,6 +127,7 @@ MonoAssembly *GDMonoAssembly::_preload_hook(MonoAssemblyName *aname, char **asse
 		const char *rootdir = mono_assembly_getrootdir();
 		if (rootdir) {
 			search_dirs.push_back(String(rootdir).plus_file("mono").plus_file("4.5"));
+			search_dirs.push_back(String(rootdir).plus_file("mono").plus_file("4.5").plus_file("Facades"));
 		}
 
 		if (assemblies_path) {
@@ -119,53 +138,90 @@ MonoAssembly *GDMonoAssembly::_preload_hook(MonoAssemblyName *aname, char **asse
 		}
 	}
 
+	String name = mono_assembly_name_get_name(aname);
+	bool has_extension = name.ends_with(".dll");
+
+	if (has_extension ? name == "mscorlib.dll" : name == "mscorlib") {
+		GDMonoAssembly **stored_assembly = GDMono::get_singleton()->get_loaded_assembly(has_extension ? name.get_basename() : name);
+		if (stored_assembly)
+			return (*stored_assembly)->get_assembly();
+
+		String path;
+		GDMonoAssembly *res = NULL;
+
+		for (int i = 0; i < search_dirs.size(); i++) {
+			const String &search_dir = search_dirs[i];
+
+			if (has_extension) {
+				path = search_dir.plus_file(name);
+				if (FileAccess::exists(path)) {
+					res = _load_assembly_from(name.get_basename(), path, refonly);
+					if (res != NULL)
+						break;
+				}
+			} else {
+				path = search_dir.plus_file(name + ".dll");
+				if (FileAccess::exists(path)) {
+					res = _load_assembly_from(name, path, refonly);
+					if (res != NULL)
+						break;
+				}
+			}
+		}
+
+		return res ? res->get_assembly() : NULL;
+	}
+
 	return NULL;
 }
 
-MonoAssembly *GDMonoAssembly::_load_assembly_from(const String &p_name, const String &p_path) {
+GDMonoAssembly *GDMonoAssembly::_load_assembly_from(const String &p_name, const String &p_path, bool p_refonly) {
 
 	GDMonoAssembly *assembly = memnew(GDMonoAssembly(p_name, p_path));
 
-	MonoDomain *domain = mono_domain_get();
-
-	Error err = assembly->load(domain);
+	Error err = assembly->load(p_refonly);
 
 	if (err != OK) {
 		memdelete(assembly);
 		ERR_FAIL_V(NULL);
 	}
 
+	MonoDomain *domain = mono_domain_get();
 	GDMono::get_singleton()->add_assembly(domain ? mono_domain_get_id(domain) : 0, assembly);
 
-	return assembly->get_assembly();
+	return assembly;
 }
 
 void GDMonoAssembly::initialize() {
 
-	// TODO refonly as well?
-	mono_install_assembly_preload_hook(&GDMonoAssembly::_preload_hook, NULL);
-	mono_install_assembly_search_hook(&GDMonoAssembly::_search_hook, NULL);
+	mono_install_assembly_search_hook(&assembly_search_hook, NULL);
+	mono_install_assembly_refonly_search_hook(&assembly_refonly_search_hook, NULL);
+	mono_install_assembly_preload_hook(&assembly_preload_hook, NULL);
+	mono_install_assembly_refonly_preload_hook(&assembly_refonly_preload_hook, NULL);
 }
 
-Error GDMonoAssembly::load(MonoDomain *p_domain) {
+Error GDMonoAssembly::load(bool p_refonly) {
 
 	ERR_FAIL_COND_V(loaded, ERR_FILE_ALREADY_IN_USE);
+
+	refonly = p_refonly;
 
 	uint64_t last_modified_time = FileAccess::get_modified_time(path);
 
 	Vector<uint8_t> data = FileAccess::get_file_as_array(path);
 	ERR_FAIL_COND_V(data.empty(), ERR_FILE_CANT_READ);
 
-	String image_filename(path);
+	String image_filename = ProjectSettings::get_singleton()->globalize_path(path);
 
-	MonoImageOpenStatus status;
+	MonoImageOpenStatus status = MONO_IMAGE_OK;
 
 	image = mono_image_open_from_data_with_name(
 			(char *)&data[0], data.size(),
-			true, &status, false,
+			true, &status, refonly,
 			image_filename.utf8().get_data());
 
-	ERR_FAIL_COND_V(status != MONO_IMAGE_OK || image == NULL, ERR_FILE_CANT_OPEN);
+	ERR_FAIL_COND_V(status != MONO_IMAGE_OK, ERR_FILE_CANT_OPEN);
+	ERR_FAIL_NULL_V(image, ERR_FILE_CANT_OPEN);
 
 #ifdef DEBUG_ENABLED
 	String pdb_path(path + ".pdb");
@@ -185,14 +241,9 @@ no_pdb:
 
 #endif
 
-	assembly = mono_assembly_load_from_full(image, image_filename.utf8().get_data(), &status, false);
+	assembly = mono_assembly_load_from_full(image, image_filename.utf8().get_data(), &status, refonly);
 
 	ERR_FAIL_COND_V(status != MONO_IMAGE_OK || assembly == NULL, ERR_FILE_CANT_OPEN);
-
-	if (p_domain && mono_image_get_entry_point(image)) {
-		// TODO should this be removed? do we want to call main? what other effects does this have?
-		mono_jit_exec(p_domain, assembly, 0, NULL);
-	}
 
 	loaded = true;
 	modified_time = last_modified_time;
@@ -345,12 +396,26 @@ GDMonoClass *GDMonoAssembly::get_object_derived_class(const StringName &p_class)
 	return match;
 }
 
+GDMonoAssembly *GDMonoAssembly::load_from(const String &p_name, const String &p_path, bool p_refonly) {
+
+	GDMonoAssembly **loaded_asm = GDMono::get_singleton()->get_loaded_assembly(p_name);
+	if (loaded_asm)
+		return *loaded_asm;
+
+	no_search = true;
+	GDMonoAssembly *res = _load_assembly_from(p_name, p_path, p_refonly);
+	no_search = false;
+
+	return res;
+}
+
 GDMonoAssembly::GDMonoAssembly(const String &p_name, const String &p_path) {
 
 	loaded = false;
 	gdobject_class_cache_updated = false;
 	name = p_name;
 	path = p_path;
+	refonly = false;
 	modified_time = 0;
 	assembly = NULL;
 	image = NULL;

@@ -163,6 +163,8 @@ struct Vector2 {
 	}
 
 	Vector2 floor() const;
+	Vector2 ceil() const;
+	Vector2 round() const;
 	Vector2 snapped(const Vector2 &p_by) const;
 	real_t aspect() const { return width / height; }
 
@@ -304,7 +306,7 @@ struct Rect2 {
 
 	inline real_t distance_to(const Vector2 &p_point) const {
 
-		real_t dist;
+		real_t dist = 0.0;
 		bool inside = true;
 
 		if (p_point.x < position.x) {

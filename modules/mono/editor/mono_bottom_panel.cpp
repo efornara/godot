@@ -142,7 +142,7 @@ void MonoBottomPanel::_errors_toggled(bool p_pressed) {
 
 void MonoBottomPanel::_build_project_pressed() {
 
-	GodotSharpBuilds::get_singleton()->build_project_blocking();
+	GodotSharpBuilds::get_singleton()->build_project_blocking("Tools");
 
 	MonoReloadNode::get_singleton()->restart_reload_timer();
 	CSharpLanguage::get_singleton()->reload_assemblies_if_needed(true);
@@ -407,9 +407,14 @@ void MonoBuildTab::stop_build() {
 
 void MonoBuildTab::_issue_activated(int p_idx) {
 
-	ERR_FAIL_INDEX(p_idx, issues.size());
+	ERR_FAIL_INDEX(p_idx, issues_list->get_item_count());
 
-	const BuildIssue &issue = issues[p_idx];
+	// Get correct issue idx from issue list
+	int issue_idx = this->issues_list->get_item_metadata(p_idx);
+
+	ERR_FAIL_INDEX(issue_idx, issues.size());
+
+	const BuildIssue &issue = issues[issue_idx];
 
 	if (issue.project_file.empty() && issue.file.empty())
 		return;
@@ -437,21 +442,16 @@ void MonoBuildTab::_bind_methods() {
 	ClassDB::bind_method("_issue_activated", &MonoBuildTab::_issue_activated);
 }
 
-MonoBuildTab::MonoBuildTab(const MonoBuildInfo &p_build_info, const String &p_logs_dir) {
-
-	build_info = p_build_info;
-	logs_dir = p_logs_dir;
-
-	build_exited = false;
-
-	issues_list = memnew(ItemList);
+MonoBuildTab::MonoBuildTab(const MonoBuildInfo &p_build_info, const String &p_logs_dir) :
+		build_info(p_build_info),
+		logs_dir(p_logs_dir),
+		build_exited(false),
+		issues_list(memnew(ItemList)),
+		error_count(0),
+		warning_count(0),
+		errors_visible(true),
+		warnings_visible(true) {
 	issues_list->set_v_size_flags(SIZE_EXPAND_FILL);
 	issues_list->connect("item_activated", this, "_issue_activated");
 	add_child(issues_list);
-
-	error_count = 0;
-	warning_count = 0;
-
-	errors_visible = true;
-	warnings_visible = true;
 }

@@ -127,6 +127,7 @@ class OS_X11 : public OS_Unix {
 		Vector<int> devices;
 		XIEventMask event_mask;
 		Map<int, Vector2> state;
+		Vector2 mouse_pos_to_filter;
 	} touch;
 #endif
 
@@ -178,6 +179,7 @@ class OS_X11 : public OS_Unix {
 	bool maximized;
 	//void set_wm_border(bool p_enabled);
 	void set_wm_fullscreen(bool p_enabled);
+	void set_wm_above(bool p_enabled);
 
 	typedef xrr_monitor_info *(*xrr_get_monitors_t)(Display *dpy, Window window, Bool get_active, int *nmonitors);
 	typedef void (*xrr_free_monitors_t)(xrr_monitor_info *monitors);
@@ -261,6 +263,8 @@ public:
 	virtual bool is_window_minimized() const;
 	virtual void set_window_maximized(bool p_enabled);
 	virtual bool is_window_maximized() const;
+	virtual void set_window_always_on_top(bool p_enabled);
+	virtual bool is_window_always_on_top() const;
 	virtual void request_attention();
 
 	virtual void set_borderless_window(bool p_borderless);

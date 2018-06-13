@@ -65,7 +65,7 @@ void EditorAssetLibraryItem::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 
-		icon->set_normal_texture(get_icon("GodotAssetDefault", "EditorIcons"));
+		icon->set_normal_texture(get_icon("DefaultProjectIcon", "EditorIcons"));
 		category->add_color_override("font_color", Color(0.5, 0.5, 0.5));
 		author->add_color_override("font_color", Color(0.5, 0.5, 0.5));
 	}
@@ -110,6 +110,7 @@ EditorAssetLibraryItem::EditorAssetLibraryItem() {
 	add_child(hb);
 
 	icon = memnew(TextureButton);
+	icon->set_custom_minimum_size(Size2(64, 64));
 	icon->set_default_cursor_shape(CURSOR_POINTING_HAND);
 	icon->connect("pressed", this, "_asset_clicked");
 
@@ -383,7 +384,7 @@ void EditorAssetLibraryItemDownload::configure(const String &p_title, int p_asse
 	icon->set_texture(p_preview);
 	asset_id = p_asset_id;
 	if (!p_preview.is_valid())
-		icon->set_texture(get_icon("GodotAssetDefault", "EditorIcons"));
+		icon->set_texture(get_icon("DefaultProjectIcon", "EditorIcons"));
 	host = p_download_url;
 	sha256 = p_sha256_hash;
 	asset_installer->connect("confirmed", this, "_close");
@@ -407,13 +408,13 @@ void EditorAssetLibraryItemDownload::_notification(int p_what) {
 			switch (cstatus) {
 
 				case HTTPClient::STATUS_RESOLVING: {
-					status->set_text(TTR("Resolving.."));
+					status->set_text(TTR("Resolving..."));
 				} break;
 				case HTTPClient::STATUS_CONNECTING: {
-					status->set_text(TTR("Connecting.."));
+					status->set_text(TTR("Connecting..."));
 				} break;
 				case HTTPClient::STATUS_REQUESTING: {
-					status->set_text(TTR("Requesting.."));
+					status->set_text(TTR("Requesting..."));
 				} break;
 				default: {}
 			}
@@ -514,6 +515,7 @@ EditorAssetLibraryItemDownload::EditorAssetLibraryItemDownload() {
 	download = memnew(HTTPRequest);
 	add_child(download);
 	download->connect("request_completed", this, "_http_download_completed");
+	download->set_use_threads(EDITOR_DEF("asset_library/use_threads", true));
 
 	download_error = memnew(AcceptDialog);
 	add_child(download_error);
@@ -703,7 +705,7 @@ void EditorAssetLibrary::_image_update(bool use_cache, bool final, const PoolByt
 			switch (image_queue[p_queue_id].image_type) {
 				case IMAGE_QUEUE_ICON:
 
-					image->resize(80 * EDSCALE, 80 * EDSCALE, Image::INTERPOLATE_CUBIC);
+					image->resize(64 * EDSCALE, 64 * EDSCALE, Image::INTERPOLATE_CUBIC);
 
 					break;
 				case IMAGE_QUEUE_THUMBNAIL: {
@@ -733,7 +735,7 @@ void EditorAssetLibrary::_image_update(bool use_cache, bool final, const PoolByt
 		}
 
 		if (!image_set && final) {
-			obj->call("set_image", image_queue[p_queue_id].image_type, image_queue[p_queue_id].image_index, get_icon("ErrorSign", "EditorIcons"));
+			obj->call("set_image", image_queue[p_queue_id].image_type, image_queue[p_queue_id].image_index, get_icon("DefaultProjectIcon", "EditorIcons"));
 		}
 	}
 }
@@ -776,7 +778,7 @@ void EditorAssetLibrary::_image_request_completed(int p_status, int p_code, cons
 		WARN_PRINTS("Error getting PNG file for asset id " + itos(image_queue[p_queue_id].asset_id));
 		Object *obj = ObjectDB::get_instance(image_queue[p_queue_id].target);
 		if (obj) {
-			obj->call("set_image", image_queue[p_queue_id].image_type, image_queue[p_queue_id].image_index, get_icon("ErrorSign", "EditorIcons"));
+			obj->call("set_image", image_queue[p_queue_id].image_type, image_queue[p_queue_id].image_index, get_icon("DefaultProjectIcon", "EditorIcons"));
 		}
 	}
 
@@ -832,6 +834,7 @@ void EditorAssetLibrary::_request_image(ObjectID p_for, String p_image_url, Imag
 	iq.image_index = p_image_index;
 	iq.image_type = p_type;
 	iq.request = memnew(HTTPRequest);
+	iq.request->set_use_threads(EDITOR_DEF("asset_library/use_threads", true));
 
 	iq.target = p_for;
 	iq.queue_id = ++last_queue_id;
@@ -1380,7 +1383,7 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 
 	support = memnew(MenuButton);
 	search_hb2->add_child(support);
-	support->set_text(TTR("Support.."));
+	support->set_text(TTR("Support..."));
 	support->get_popup()->add_check_item(TTR("Official"), SUPPORT_OFFICIAL);
 	support->get_popup()->add_check_item(TTR("Community"), SUPPORT_COMMUNITY);
 	support->get_popup()->add_check_item(TTR("Testing"), SUPPORT_TESTING);

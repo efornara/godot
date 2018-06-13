@@ -982,6 +982,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_newcontext(JNIEnv *en
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_back(JNIEnv *env, jobject obj) {
+	if (step == 0)
+		return;
+
 	os_android->main_loop_request_go_back();
 }
 
@@ -1026,7 +1029,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_step(JNIEnv *env, job
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_touch(JNIEnv *env, jobject obj, jint ev, jint pointer, jint count, jintArray positions) {
 
-	//__android_log_print(ANDROID_LOG_INFO,"godot","**TOUCH EVENT! - %p-%i\n",env,Thread::get_caller_id());
+	if (step == 0)
+		return;
 
 	Vector<OS_Android::TouchPos> points;
 	for (int i = 0; i < count; i++) {
@@ -1303,6 +1307,8 @@ static unsigned int android_get_keysym(unsigned int p_code) {
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joybutton(JNIEnv *env, jobject obj, jint p_device, jint p_button, jboolean p_pressed) {
+	if (step == 0)
+		return;
 
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
@@ -1314,6 +1320,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joybutton(JNIEnv *env
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyaxis(JNIEnv *env, jobject obj, jint p_device, jint p_axis, jfloat p_value) {
+	if (step == 0)
+		return;
 
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
@@ -1325,6 +1333,9 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyaxis(JNIEnv *env, 
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyhat(JNIEnv *env, jobject obj, jint p_device, jint p_hat_x, jint p_hat_y) {
+	if (step == 0)
+		return;
+
 	OS_Android::JoypadEvent jevent;
 	jevent.device = p_device;
 	jevent.type = OS_Android::JOY_EVENT_HAT;
@@ -1354,6 +1365,8 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_joyconnectionchanged(
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_key(JNIEnv *env, jobject obj, jint p_scancode, jint p_unicode_char, jboolean p_pressed) {
+	if (step == 0)
+		return;
 
 	Ref<InputEventKey> ievent;
 	ievent.instance();
@@ -1399,14 +1412,18 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_gyroscope(JNIEnv *env
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_focusin(JNIEnv *env, jobject obj) {
 
-	if (os_android && step > 0)
-		os_android->main_loop_focusin();
+	if (step == 0)
+		return;
+
+	os_android->main_loop_focusin();
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_focusout(JNIEnv *env, jobject obj) {
 
-	if (os_android && step > 0)
-		os_android->main_loop_focusout();
+	if (step == 0)
+		return;
+
+	os_android->main_loop_focusout();
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_audio(JNIEnv *env, jobject obj) {

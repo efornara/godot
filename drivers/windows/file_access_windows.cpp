@@ -57,7 +57,8 @@ void FileAccessWindows::check_errors() const {
 
 Error FileAccessWindows::_open(const String &p_path, int p_mode_flags) {
 
-	String filename = fix_path(p_path);
+	path_src = p_path;
+	path = fix_path(p_path);
 	if (f)
 		close();
 
@@ -78,19 +79,19 @@ Error FileAccessWindows::_open(const String &p_path, int p_mode_flags) {
 	   backend supports utf8 encoding */
 
 	struct _stat st;
-	if (_wstat(filename.c_str(), &st) == 0) {
+	if (_wstat(path.c_str(), &st) == 0) {
 
 		if (!S_ISREG(st.st_mode))
 			return ERR_FILE_CANT_OPEN;
 	};
 
 	if (is_backup_save_enabled() && p_mode_flags & WRITE && !(p_mode_flags & READ)) {
-		save_path = filename;
-		filename = filename + ".tmp";
+		save_path = path;
+		path = path + ".tmp";
 		//print_line("saving instead to "+path);
 	}
 
-	f = _wfopen(filename.c_str(), mode_string);
+	f = _wfopen(path.c_str(), mode_string);
 
 	if (f == NULL) {
 		last_error = ERR_FILE_CANT_OPEN;
@@ -112,7 +113,7 @@ void FileAccessWindows::close() {
 	if (save_path != "") {
 
 		//unlink(save_path.utf8().get_data());
-		//print_line("renaming..");
+		//print_line("renaming...");
 		//_wunlink(save_path.c_str()); //unlink if exists
 		//int rename_error = _wrename((save_path+".tmp").c_str(),save_path.c_str());
 
@@ -138,19 +139,36 @@ void FileAccessWindows::close() {
 				//atomic replace for existing file
 				rename_error = !ReplaceFileW(save_path.c_str(), (save_path + ".tmp").c_str(), NULL, 2 | 4, NULL, NULL);
 			}
-			if (rename_error && close_fail_notify) {
-				close_fail_notify(save_path);
-			}
 			if (rename_error) {
 				attempts--;
 				OS::get_singleton()->delay_usec(1000000); //wait 100msec and try again
 			}
 		}
 
+		if (rename_error) {
+			if (close_fail_notify) {
+				close_fail_notify(save_path);
+			}
+
+			ERR_EXPLAIN("Safe save failed. This may be a permissions problem, but also may happen because you are running a paranoid antivirus. If this is the case, please switch to Windows Defender or disable the 'safe save' option in editor settings. This makes it work, but increases the risk of file corruption in a crash.");
+		}
+
 		save_path = "";
+
 		ERR_FAIL_COND(rename_error);
 	}
 }
+
+String FileAccessWindows::get_path() const {
+
+	return path_src;
+}
+
+String FileAccessWindows::get_path_absolute() const {
+
+	return path;
+}
+
 bool FileAccessWindows::is_open() const {
 
 	return (f != NULL);
