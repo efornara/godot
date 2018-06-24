@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="OS" inherits="Object" category="Core" version="3.0.3">
+<class name="OS" inherits="Object" category="Core" version="3.0.4">
 	<brief_description>
 		Operating System functions.
 	</brief_description>
@@ -269,7 +269,6 @@
 			</argument>
 			<description>
 				Returns the dots per inch density of the specified screen.
-
 				On Android Devices, the actual screen densities are grouped into six generalized densities:
 					ldpi    - 120 dpi
 					mdpi    - 160 dpi

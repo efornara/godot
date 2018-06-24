@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Engine" inherits="Object" category="Core" version="3.0.3">
+<class name="Engine" inherits="Object" category="Core" version="3.0.4">
 	<brief_description>
 		Access to basic engine properties.
 	</brief_description>
@@ -45,7 +45,6 @@
 			</return>
 			<description>
 				Returns the current engine version information in a Dictionary.
-
 				"major"    - Holds the major version number as an int
 				"minor"    - Holds the minor version number as an int
 				"patch"    - Holds the patch version number as an int
