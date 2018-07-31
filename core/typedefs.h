@@ -58,11 +58,7 @@
 #endif
 
 #ifndef _FORCE_INLINE_
-#ifdef DEBUG_ENABLED
-#define _FORCE_INLINE_ inline
-#else
 #define _FORCE_INLINE_ _ALWAYS_INLINE_
-#endif
 #endif
 
 //custom, gcc-safe offsetof, because gcc complains a lot.
@@ -74,7 +70,7 @@ T *_nullptr() {
 
 #define OFFSET_OF(st, m) \
 	((size_t)((char *)&(_nullptr<st>()->m) - (char *)0))
-	/**
+/**
  * Some platforms (devices) not define NULL
  */
 
@@ -82,7 +78,7 @@ T *_nullptr() {
 #define NULL 0
 #endif
 
-	/**
+/**
  * Windows defines a lot of badly stuff we'll never ever use. undefine it.
  */
 
@@ -104,7 +100,7 @@ T *_nullptr() {
 #include "error_list.h"
 #include "error_macros.h"
 
-	/** Generic ABS function, for math uses please use Math::abs */
+/** Generic ABS function, for math uses please use Math::abs */
 
 #ifndef ABS
 #define ABS(m_v) ((m_v < 0) ? (-(m_v)) : (m_v))
@@ -266,7 +262,7 @@ static inline uint64_t BSWAP64(uint64_t x) {
 template <class T>
 struct Comparator {
 
-	inline bool operator()(const T &p_a, const T &p_b) const { return (p_a < p_b); }
+	_ALWAYS_INLINE_ bool operator()(const T &p_a, const T &p_b) const { return (p_a < p_b); }
 };
 
 void _global_lock();
