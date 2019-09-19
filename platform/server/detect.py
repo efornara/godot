@@ -23,6 +23,7 @@ def get_opts():
 
     return [
         ('use_llvm', 'Use llvm compiler', 'no'),
+        ('use_lto', 'Use link time optimization', 'no'),
         ('force_32_bits', 'Force 32 bits binary', 'no')
     ]
 
@@ -63,6 +64,12 @@ def configure(env):
     #	#no tools suffix
     #	env['OBJSUFFIX'] = ".nt"+env['OBJSUFFIX']
     #	env['LIBSUFFIX'] = ".nt"+env['LIBSUFFIX']
+
+    if (env["use_lto"] == "yes"):
+        env.Append(CCFLAGS=['-flto=thin'])
+        env.Append(LINKFLAGS=['-fuse-ld=lld', '-flto=thin'])
+        env['AR'] = 'llvm-ar'
+        env['RANLIB'] = 'llvm-ranlib'
 
     if (env["target"] == "release"):
 
