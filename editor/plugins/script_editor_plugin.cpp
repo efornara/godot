@@ -1103,7 +1103,7 @@ void ScriptEditor::_menu_option(int p_option) {
 		} break;
 		case SEARCH_WEBSITE: {
 
-			OS::get_singleton()->shell_open("http://docs.godotengine.org/");
+			OS::get_singleton()->shell_open("file:///usr/share/doc/godot2-doc/index.html");
 		} break;
 
 		case WINDOW_NEXT: {
@@ -2907,7 +2907,7 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	site_search->set_text(TTR("Tutorials"));
 	site_search->connect("pressed", this, "_menu_option", varray(SEARCH_WEBSITE));
 	menu_hb->add_child(site_search);
-	site_search->set_tooltip(TTR("Open https://godotengine.org at tutorials section."));
+	site_search->set_tooltip(TTR("Browse local documentation (godot2-doc package required)."));
 
 	class_search = memnew(ToolButton);
 	class_search->set_text(TTR("Classes"));
