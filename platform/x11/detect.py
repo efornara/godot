@@ -113,8 +113,10 @@ def configure(env):
     #	env['LIBSUFFIX'] = ".nt"+env['LIBSUFFIX']
 
     if (env["use_lto"] == "yes"):
-        env.Append(CCFLAGS=['-flto'])
-        env.Append(LINKFLAGS=['-flto'])
+        env.Append(CCFLAGS=['-flto=thin'])
+        env.Append(LINKFLAGS=['-fuse-ld=lld', '-flto=thin'])
+        env['AR'] = 'llvm-ar'
+        env['RANLIB'] = 'llvm-ranlib'
 
 
     env.Append(CCFLAGS=['-pipe'])
