@@ -1103,7 +1103,7 @@ void ScriptEditor::_menu_option(int p_option) {
 		} break;
 		case SEARCH_WEBSITE: {
 
-			OS::get_singleton()->shell_open("file:///usr/share/doc/godot2-doc/index.html");
+			OS::get_singleton()->shell_open("file:///usr/share/doc/godot2-doc/html/index.html");
 		} break;
 
 		case WINDOW_NEXT: {
