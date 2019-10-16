@@ -64,12 +64,20 @@ public:
 		MODE_INSTALL
 	};
 
+	enum Preset {
+		PRESET_DEFAULT,
+		PRESET_2D,
+		PRESET_3D,
+		PRESET_PIXEL
+	};
+
 private:
 	Mode mode;
-	Label *pp, *pn;
+	Label *pp, *pn, *ps;
 	Label *error;
 	LineEdit *project_path;
 	LineEdit *project_name;
+	OptionButton *project_preset;
 	FileDialog *fdialog;
 	String zip_path;
 	String zip_title;
@@ -194,6 +202,7 @@ private:
 					error->set_text(TTR("Couldn't create engine.cfg in project path."));
 				} else {
 
+					Preset preset = (Preset)project_preset->get_selected_ID();
 					f->store_line("; Engine configuration file.");
 					f->store_line("; It's best edited using the editor UI and not directly,");
 					f->store_line("; since the parameters that go here are not all obvious.");
@@ -203,13 +212,51 @@ private:
 					f->store_line(";   param=value ; assign values to parameters");
 					f->store_line("\n");
 					f->store_line("[application]");
-					f->store_line("\n");
+					f->store_line("");
 					f->store_line("name=\"" + project_name->get_text() + "\"");
 					f->store_line("icon=\"res://icon.png\"");
-					f->store_line("\n");
+					f->store_line("");
+					if (preset != PRESET_DEFAULT) {
+						f->store_line("[display]");
+						f->store_line("");
+						if (preset == PRESET_PIXEL) {
+							f->store_line("test_width=960");
+							f->store_line("test_height=540");
+							f->store_line("width=320");
+							f->store_line("height=180");
+						} else {
+							f->store_line("width=960");
+							f->store_line("height=540");
+						}
+						if (preset == PRESET_2D || preset == PRESET_PIXEL) {
+							f->store_line("stretch_mode=\"2d\"");
+							f->store_line("stretch_aspect=\"keep\"");
+						}
+						f->store_line("");
+					}
+					if (preset == PRESET_PIXEL) {
+						f->store_line("[image_loader]");
+						f->store_line("");
+						f->store_line("filter=false");
+						f->store_line("gen_mipmaps=false");
+						f->store_line("");
+					}
 					f->store_line("[physics_2d]");
-					f->store_line("\n");
+					f->store_line("");
 					f->store_line("motion_fix_enabled=true");
+					f->store_line("");
+					if (preset != PRESET_DEFAULT) {
+						f->store_line("[rasterizer]");
+						f->store_line("");
+						f->store_line("fp16_framebuffer=false");
+						f->store_line("");
+					}
+					if (preset == PRESET_3D) {
+						f->store_line("[render]");
+						f->store_line("");
+						f->store_line("shadows_enabled=false");
+						f->store_line("");
+					}
 
 					memdelete(f);
 
@@ -358,6 +405,8 @@ public:
 			pn->set_text(TTR("Project Name:"));
 			pn->hide();
 			project_name->hide();
+			ps->hide();
+			project_preset->hide();
 
 			popup_centered(Size2(500, 125) * EDSCALE);
 
@@ -369,6 +418,8 @@ public:
 			pn->set_text(TTR("Project Name:"));
 			pn->show();
 			project_name->show();
+			ps->show();
+			project_preset->show();
 
 			popup_centered(Size2(500, 145) * EDSCALE);
 		} else if (mode == MODE_INSTALL) {
@@ -378,6 +429,8 @@ public:
 			pp->set_text(TTR("Project Path:"));
 			pn->hide();
 			project_name->hide();
+			ps->hide();
+			project_preset->hide();
 
 			popup_centered(Size2(500, 125) * EDSCALE);
 		}
@@ -421,6 +474,22 @@ public:
 		vb->add_child(mc);
 		mc->add_child(project_name);
 		project_name->set_text(TTR("New Game Project"));
+
+		l = memnew(Label);
+		l->set_text(TTR("Project Preset:"));
+		l->set_pos(Point2(5, 50));
+		vb->add_child(l);
+		ps = l;
+
+		project_preset = memnew(OptionButton);
+		mc = memnew(MarginContainer);
+		vb->add_child(mc);
+		mc->add_child(project_preset);
+		project_preset->add_item(TTR("Godot Default"), PRESET_DEFAULT);
+		project_preset->add_item(TTR("2D - 960x540, 2D/Keep, No FpFb"), PRESET_2D);
+		project_preset->add_item(TTR("3D - 960x540, No Shadows, No FpFb"), PRESET_3D);
+		project_preset->add_item(TTR("Pixel - 320x180 (960x540), 2D/Keep, No Filter/MipMaps, No FpFb"), PRESET_PIXEL);
+		project_preset->select(PRESET_DEFAULT);
 
 		l = memnew(Label);
 		l->set_text(TTR("That's a BINGO!"));
