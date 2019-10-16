@@ -85,7 +85,7 @@ def configure(env):
             env["CXX"] = "clang++"
             env["LD"] = "clang++"
         env.Append(CPPFLAGS=['-DTYPED_METHOD_BIND'])
-        env.extra_suffix = ".llvm"
+        env.extra_suffix += ".llvm"
     elif (os.system("gcc --version > /dev/null 2>&1") == 0): # GCC
         # Hack to prevent building this branch with GCC 6+, which trigger segfaults due to UB when dereferencing pointers in Object::cast_to
         # This is fixed in the master branch, for 2.1 we just prevent using too recent GCC versions.
