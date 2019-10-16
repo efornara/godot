@@ -6,6 +6,9 @@ doc/_build/
 # Specific to the master branch
 doc/classes/
 
+# Be nice to FRT
+platform/frt
+
 # Javascript specific
 *.bc
 
