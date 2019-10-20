@@ -35,4 +35,8 @@
 #define PTHREAD_BSD_SET_NAME
 #endif
 
+#ifdef GLES_OVER_GL
 #define GLES2_INCLUDE_H "GL/glew.h"
+#else
+#define GLES2_INCLUDE_H "GLES2/gl2.h"
+#endif

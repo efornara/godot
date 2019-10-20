@@ -10279,9 +10279,9 @@ void RasterizerGLES2::init() {
 
 #else
 
-	for (Set<String>::Element *E = extensions.front(); E; E = E->next()) {
-		print_line(E->get());
-	}
+	//for (Set<String>::Element *E = extensions.front(); E; E = E->next()) {
+	//	print_line(E->get());
+	//}
 	read_depth_supported = extensions.has("GL_OES_depth_texture");
 	use_rgba_shadowmaps = !read_depth_supported;
 	if (shadow_filter >= SHADOW_FILTER_ESM && !extensions.has("GL_EXT_frag_depth")) {
@@ -10308,7 +10308,7 @@ void RasterizerGLES2::init() {
 		anisotropic_level = MIN(anisotropic_level, float(GLOBAL_DEF("rasterizer/anisotropic_filter_level", 4.0)));
 	}
 
-	print_line("S3TC: " + itos(s3tc_supported) + " ATITC: " + itos(atitc_supported));
+	//print_line("S3TC: " + itos(s3tc_supported) + " ATITC: " + itos(atitc_supported));
 
 	GLint vtf;
 	glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &vtf);

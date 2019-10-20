@@ -2,7 +2,8 @@
 
 Import('env')
 
-if (env["platform"] in ["haiku", "osx", "windows", "x11"]):
+if ((env["platform"] in ["haiku", "osx", "windows"]) or
+  ((env["platform"] == "x11") and (env["use_egles2"] == 'no'))):
     # Thirdparty source files
     if (env['builtin_glew'] != 'no'):  # builtin
         thirdparty_dir = "#thirdparty/glew/"

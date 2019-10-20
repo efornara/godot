@@ -60,6 +60,7 @@ def get_opts():
         ('udev', 'Use udev for gamepad connection callbacks', 'no'),
         ('debug_release', 'Add debug symbols to release version', 'no'),
         ('touch', 'Enable touch events', 'yes'),
+        ('use_egles2', 'Use EGL / OpenGL ES 2.0', 'yes'),
     ]
 
 
@@ -228,8 +229,14 @@ def configure(env):
     if (env['builtin_zlib'] == 'no'):
         env.ParseConfig('pkg-config zlib --cflags --libs')
 
-    env.Append(CPPFLAGS=['-DX11_ENABLED', '-DUNIX_ENABLED', '-DGLES2_ENABLED', '-DGLES_OVER_GL'])
-    env.Append(LIBS=['GL', 'pthread'])
+    env.Append(CPPFLAGS=['-DX11_ENABLED', '-DUNIX_ENABLED', '-DGLES2_ENABLED'])
+    if (env['use_egles2'] == 'yes'):
+        env.Append(CPPFLAGS=['-DGLES_ENABLED'])
+        env.Append(LIBS=['EGL', 'GLESv2'])
+    else:
+        env.Append(CPPFLAGS=['-DGLES_OVER_GL'])
+        env.Append(LIBS=['GL'])
+    env.Append(LIBS=['pthread'])
 
     if (platform.system() == "Linux"):
         env.Append(LIBS=['dl'])
