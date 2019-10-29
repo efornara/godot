@@ -1431,6 +1431,7 @@ ProjectManager::ProjectManager() {
 
 	tree_vb->add_spacer();
 
+#if 0 /* Disabled by rpi-dev */
 	if (StreamPeerSSL::is_available()) {
 		asset_library = memnew(EditorAssetLibrary(true));
 		asset_library->set_name(TTR("Templates"));
@@ -1439,6 +1440,7 @@ ProjectManager::ProjectManager() {
 	} else {
 		WARN_PRINT("Asset Library not available, as it requires SSL to work.");
 	}
+#endif
 
 	CenterContainer *cc = memnew(CenterContainer);
 	Button *cancel = memnew(Button);
