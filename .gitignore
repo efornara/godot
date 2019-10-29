@@ -7,7 +7,10 @@ doc/_build/
 doc/classes/
 
 # Be nice to FRT
-platform/frt
+platform/frt/
+
+# Private files
+private/
 
 # Javascript specific
 *.bc
